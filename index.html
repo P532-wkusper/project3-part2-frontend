@@ -470,20 +470,26 @@
                     </div>
                     <form onsubmit="recordMeasurement(event, ${patientId})">
                         <div class="form-group">
-                            <label>Phenomenon Type ID</label>
-                            <input type="number" id="phenomenonTypeId" required>
+                            <label>Phenomenon Type</label>
+                            <select id="phenomenonTypeId" required onchange="updateUnitsDropdown()">
+                                <option value="">Select a phenomenon...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Unit</label>
+                            <select id="unit" required>
+                                <option value="">Select a unit...</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Amount</label>
                             <input type="number" id="amount" step="0.01" required>
                         </div>
                         <div class="form-group">
-                            <label>Unit</label>
-                            <input type="text" id="unit" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Protocol ID (optional)</label>
-                            <input type="number" id="protocolId">
+                            <label>Protocol (optional)</label>
+                            <select id="protocolId">
+                                <option value="">None</option>
+                            </select>
                         </div>
                         <div class="actions">
                             <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -492,7 +498,55 @@
                     </form>
                 </div>
             `;
+            
+            // Populate phenomenon types dropdown
+            fetch(`${API_BASE}/phenomenon-types`)
+                .then(r => r.json())
+                .then(types => {
+                    const select = document.getElementById('phenomenonTypeId');
+                    types.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = t.name;
+                        select.appendChild(opt);
+                    });
+                });
+            
+            // Populate protocols dropdown
+            fetch(`${API_BASE}/protocols`)
+                .then(r => r.json())
+                .then(protocols => {
+                    const select = document.getElementById('protocolId');
+                    protocols.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        select.appendChild(opt);
+                    });
+                });
+            
             modal.classList.add('active');
+        }
+
+        function updateUnitsDropdown() {
+            const ptId = document.getElementById('phenomenonTypeId').value;
+            const unitSelect = document.getElementById('unit');
+            unitSelect.innerHTML = '<option value="">Select a unit...</option>';
+            
+            if (!ptId) return;
+            
+            fetch(`${API_BASE}/phenomenon-types/${ptId}`)
+                .then(r => r.json())
+                .then(pt => {
+                    if (pt.allowedUnits && pt.allowedUnits.length > 0) {
+                        pt.allowedUnits.forEach(unit => {
+                            const opt = document.createElement('option');
+                            opt.value = unit;
+                            opt.textContent = unit;
+                            unitSelect.appendChild(opt);
+                        });
+                    }
+                });
         }
 
         async function recordMeasurement(event, patientId) {
@@ -533,8 +587,16 @@
                     </div>
                     <form onsubmit="recordCategory(event, ${patientId})">
                         <div class="form-group">
-                            <label>Phenomenon ID</label>
-                            <input type="number" id="phenomenonId" required>
+                            <label>Phenomenon Type (for qualitative phenomena)</label>
+                            <select id="phenomenonTypeForCategory" required onchange="updatePhenomenaDropdown()">
+                                <option value="">Select a type...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Phenomenon</label>
+                            <select id="phenomenonId" required>
+                                <option value="">Select a phenomenon...</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Presence</label>
@@ -545,8 +607,10 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Protocol ID (optional)</label>
-                            <input type="number" id="protocolId2">
+                            <label>Protocol (optional)</label>
+                            <select id="protocolId2">
+                                <option value="">None</option>
+                            </select>
                         </div>
                         <div class="actions">
                             <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -555,7 +619,53 @@
                     </form>
                 </div>
             `;
+            
+            // Populate phenomenon types dropdown (only qualitative)
+            fetch(`${API_BASE}/phenomenon-types`)
+                .then(r => r.json())
+                .then(types => {
+                    const select = document.getElementById('phenomenonTypeForCategory');
+                    types.filter(t => t.kind === 'QUALITATIVE').forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = t.name;
+                        select.appendChild(opt);
+                    });
+                });
+            
+            // Populate protocols dropdown
+            fetch(`${API_BASE}/protocols`)
+                .then(r => r.json())
+                .then(protocols => {
+                    const select = document.getElementById('protocolId2');
+                    protocols.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        select.appendChild(opt);
+                    });
+                });
+            
             modal.classList.add('active');
+        }
+
+        function updatePhenomenaDropdown() {
+            const ptId = document.getElementById('phenomenonTypeForCategory').value;
+            const phenomenaSelect = document.getElementById('phenomenonId');
+            phenomenaSelect.innerHTML = '<option value="">Select a phenomenon...</option>';
+            
+            if (!ptId) return;
+            
+            fetch(`${API_BASE}/phenomenon-types/${ptId}/phenomena`)
+                .then(r => r.json())
+                .then(phenomena => {
+                    phenomena.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        phenomenaSelect.appendChild(opt);
+                    });
+                });
         }
 
         async function recordCategory(event, patientId) {
@@ -721,6 +831,11 @@
                 ptList.innerHTML = phenomenonTypes.map(pt => `
                     <div class="list-item">
                         <p><strong>${pt.name}</strong> - ${pt.kind}</p>
+                        ${pt.kind === 'QUANTITATIVE' ? `<p><small>Units: ${pt.allowedUnits.length > 0 ? pt.allowedUnits.join(', ') : 'None defined'}</small></p>` : ''}
+                        <div class="actions">
+                            <button class="btn btn-secondary" style="flex: 1; padding: 0.3rem;" onclick="showAddUnitForm(${pt.id}, '${pt.kind}')">Manage Units</button>
+                            <button class="btn btn-danger" style="flex: 1; padding: 0.3rem;" onclick="deletePhenomenonType(${pt.id})">Delete</button>
+                        </div>
                     </div>
                 `).join('');
                 
@@ -731,10 +846,76 @@
                     <div class="list-item">
                         <p><strong>${pr.name}</strong> - ${pr.accuracyRating}</p>
                         <p>${pr.description}</p>
+                        <button class="btn btn-danger" style="width: 100%; padding: 0.3rem;" onclick="deleteProtocol(${pr.id})">Delete</button>
                     </div>
                 `).join('');
             } catch (error) {
                 console.error('Error loading catalogue:', error);
+            }
+        }
+
+        async function deletePhenomenonType(id) {
+            if (confirm('Are you sure?')) {
+                try {
+                    await fetch(`${API_BASE}/phenomenon-types/${id}`, { method: 'DELETE' });
+                    loadCatalogue();
+                } catch (error) {
+                    alert('Error deleting phenomenon type: ' + error.message);
+                }
+            }
+        }
+
+        async function deleteProtocol(id) {
+            if (confirm('Are you sure?')) {
+                try {
+                    await fetch(`${API_BASE}/protocols/${id}`, { method: 'DELETE' });
+                    loadCatalogue();
+                } catch (error) {
+                    alert('Error deleting protocol: ' + error.message);
+                }
+            }
+        }
+
+        function showAddUnitForm(ptId, kind) {
+            if (kind !== 'QUANTITATIVE') {
+                alert('Only quantitative phenomenon types can have units');
+                return;
+            }
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Add Unit</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="addUnit(event, ${ptId})">
+                        <div class="form-group">
+                            <label>Unit Name</label>
+                            <input type="text" id="unitName" required>
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Add</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        async function addUnit(event, ptId) {
+            event.preventDefault();
+            const unit = document.getElementById('unitName').value;
+            try {
+                await fetch(`${API_BASE}/phenomenon-types/${ptId}/units`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ unit })
+                });
+                closeModal();
+                loadCatalogue();
+            } catch (error) {
+                alert('Error adding unit: ' + error.message);
             }
         }
 

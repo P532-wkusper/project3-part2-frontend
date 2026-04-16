@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogue - Patient Observation Tracker</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="navbar">
+        <h1>Patient Observation Tracker</h1>
+        <nav>
+            <a href="index.html">Patients</a>
+            <a href="catalogue.html">Catalogue</a>
+            <a href="logs.html">Logs</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <h2>Catalogue</h2>
+        
+        <div id="alert"></div>
+
+        <div class="grid-2">
+            <div>
+                <h3>Phenomenon Types</h3>
+                <button class="btn btn-primary" onclick="showAddPhenomenonTypeModal()">Add Phenomenon Type</button>
+                <div id="phenomenon-types-list" class="list"></div>
+            </div>
+
+            <div>
+                <h3>Protocols</h3>
+                <button class="btn btn-primary" onclick="showAddProtocolModal()">Add Protocol</button>
+                <div id="protocols-list" class="list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal"></div>
+
+    <script>
+        const API_BASE = 'https://patient-tracking-part1.onrender.com/api';
+
+        function loadCatalogue() {
+            Promise.all([
+                fetch(`${API_BASE}/phenomenon-types`).then(r => r.json()),
+                fetch(`${API_BASE}/protocols`).then(r => r.json())
+            ])
+                .then(([phenomenonTypes, protocols]) => {
+                    const ptList = document.getElementById('phenomenon-types-list');
+                    ptList.innerHTML = phenomenonTypes.map(pt => `
+                        <div class="list-item">
+                            <h4>${pt.name}</h4>
+                            <p><strong>Kind:</strong> ${pt.kind}</p>
+                        </div>
+                    `).join('');
+
+                    const prList = document.getElementById('protocols-list');
+                    prList.innerHTML = protocols.map(pr => `
+                        <div class="list-item">
+                            <h4>${pr.name}</h4>
+                            <p><strong>Rating:</strong> ${pr.accuracyRating}</p>
+                            <p>${pr.description || 'N/A'}</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(e => showAlert('Error loading catalogue: ' + e.message, 'error'));
+        }
+
+        function showAddPhenomenonTypeModal() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Add Phenomenon Type</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="createPhenomenonType(event)">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="ptName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Kind</label>
+                            <select id="ptKind" required>
+                                <option value="">Select...</option>
+                                <option value="QUANTITATIVE">Quantitative</option>
+                                <option value="QUALITATIVE">Qualitative</option>
+                            </select>
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        function createPhenomenonType(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('ptName').value,
+                kind: document.getElementById('ptKind').value
+            };
+
+            fetch(`${API_BASE}/phenomenon-types`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed')))
+                .then(() => {
+                    closeModal();
+                    loadCatalogue();
+                    showAlert('Phenomenon type created', 'success');
+                })
+                .catch(e => showAlert('Error: ' + e.message, 'error'));
+        }
+
+        function showAddProtocolModal() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Add Protocol</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="createProtocol(event)">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="prName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="prDesc"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Accuracy Rating</label>
+                            <select id="prRating" required>
+                                <option value="">Select...</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        function createProtocol(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('prName').value,
+                description: document.getElementById('prDesc').value,
+                accuracyRating: document.getElementById('prRating').value
+            };
+
+            fetch(`${API_BASE}/protocols`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed')))
+                .then(() => {
+                    closeModal();
+                    loadCatalogue();
+                    showAlert('Protocol created', 'success');
+                })
+                .catch(e => showAlert('Error: ' + e.message, 'error'));
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        function showAlert(msg, type) {
+            const alert = document.getElementById('alert');
+            alert.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+            setTimeout(() => alert.innerHTML = '', 5000);
+        }
+
+        loadCatalogue();
+    </script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - Patient Observation Tracker</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="navbar">
+        <h1>Patient Observation Tracker</h1>
+        <nav>
+            <a href="index.html">Patients</a>
+            <a href="catalogue.html">Catalogue</a>
+            <a href="logs.html">Logs</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <h2>System Logs</h2>
+        
+        <div class="grid-2">
+            <div>
+                <h3>Command Log</h3>
+                <div id="command-log"></div>
+            </div>
+
+            <div>
+                <h3>Audit Log</h3>
+                <div id="audit-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://patient-tracking-part1.onrender.com/api';
+
+        function loadLogs() {
+            Promise.all([
+                fetch(`${API_BASE}/command-log`).then(r => r.json()),
+                fetch(`${API_BASE}/audit-log`).then(r => r.json())
+            ])
+                .then(([commandLog, auditLog]) => {
+                    const cmdList = document.getElementById('command-log');
+                    if (commandLog.length === 0) {
+                        cmdList.innerHTML = '<p>No command log entries</p>';
+                    } else {
+                        cmdList.innerHTML = commandLog.map(entry => `
+                            <div class="list-item">
+                                <h4>${entry.commandType}</h4>
+                                <p><strong>User:</strong> ${entry.user}</p>
+                                <p><strong>Executed:</strong> ${new Date(entry.executedAt).toLocaleString()}</p>
+                            </div>
+                        `).join('');
+                    }
+
+                    const auditList = document.getElementById('audit-log');
+                    if (auditLog.length === 0) {
+                        auditList.innerHTML = '<p>No audit log entries</p>';
+                    } else {
+                        auditList.innerHTML = auditLog.map(entry => `
+                            <div class="list-item">
+                                <h4>${entry.event}</h4>
+                                <p><strong>Patient ID:</strong> ${entry.patientId}</p>
+                                <p><strong>Observation ID:</strong> ${entry.observationId}</p>
+                                <p><strong>Timestamp:</strong> ${new Date(entry.timestamp).toLocaleString()}</p>
+                            </div>
+                        `).join('');
+                    }
+                })
+                .catch(e => console.error('Error loading logs:', e));
+        }
+
+        loadLogs();
+    </script>
+</body>
+</html>

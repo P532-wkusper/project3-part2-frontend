@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients - Patient Observation Tracker</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="navbar">
+        <h1>Patient Observation Tracker</h1>
+        <nav>
+            <a href="index.html">Patients</a>
+            <a href="catalogue.html">Catalogue</a>
+            <a href="logs.html">Logs</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <h2>Patients</h2>
+        <button class="btn btn-primary" onclick="showAddPatientModal()">Add Patient</button>
+        
+        <div id="alert"></div>
+        <div id="patient-list" class="list"></div>
+    </div>
+
+    <div id="modal" class="modal"></div>
+
+    <script>
+        const API_BASE = 'https://patient-tracking-part1.onrender.com/api';
+
+        function loadPatients() {
+            fetch(`${API_BASE}/patients`)
+                .then(r => r.json())
+                .then(patients => {
+                    const list = document.getElementById('patient-list');
+                    if (patients.length === 0) {
+                        list.innerHTML = '<p>No patients found</p>';
+                        return;
+                    }
+                    list.innerHTML = patients.map(p => `
+                        <div class="list-item" onclick="viewPatient(${p.id})">
+                            <h4>${p.fullName}</h4>
+                            <p><strong>DOB:</strong> ${p.dateOfBirth}</p>
+                            <p><strong>Note:</strong> ${p.note || 'N/A'}</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(e => showAlert('Error loading patients: ' + e.message, 'error'));
+        }
+
+        function viewPatient(id) {
+            window.location.href = `patient.html?id=${id}`;
+        }
+
+        function showAddPatientModal() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Add Patient</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="createPatient(event)">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="fullName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Birth</label>
+                            <input type="date" id="dob" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Note</label>
+                            <textarea id="note"></textarea>
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        function createPatient(e) {
+            e.preventDefault();
+            const data = {
+                fullName: document.getElementById('fullName').value,
+                dateOfBirth: document.getElementById('dob').value,
+                note: document.getElementById('note').value
+            };
+            
+            fetch(`${API_BASE}/patients`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to create')))
+                .then(() => {
+                    closeModal();
+                    loadPatients();
+                    showAlert('Patient created successfully', 'success');
+                })
+                .catch(e => showAlert('Error: ' + e.message, 'error'));
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        function showAlert(msg, type) {
+            const alert = document.getElementById('alert');
+            alert.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+            setTimeout(() => alert.innerHTML = '', 5000);
+        }
+
+        loadPatients();
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Observation Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .navbar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .navbar ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .navbar a:hover {
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        h2 {
+            margin-bottom: 1.5rem;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+
+        h3 {
+            margin-bottom: 1rem;
+            color: #34495e;
+        }
+
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #229954;
+        }
+
+        .card {
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+        }
+
+        .patient-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .patient-card {
+            background: white;
+            border-radius: 6px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .patient-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .patient-card h3 {
+            color: #2c3e50;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .patient-card p {
+            margin: 0.3rem 0;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .list-item {
+            background: #f9f9f9;
+            border-left: 4px solid #3498db;
+            padding: 0.8rem;
+            border-radius: 3px;
+            margin-bottom: 0.5rem;
+        }
+
+        .error {
+            color: #e74c3c;
+            padding: 0.8rem;
+            background-color: #fadbd8;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .success {
+            color: #27ae60;
+            padding: 0.8rem;
+            background-color: #d5f4e6;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 6px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .actions button {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>Patient Observation Tracker</h1>
+        <ul>
+            <li><a onclick="switchSection('patients')">Patients</a></li>
+            <li><a onclick="switchSection('catalogue')">Catalogue</a></li>
+            <li><a onclick="switchSection('logs')">Logs</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <section id="patients" class="section active">
+            <h2>Patients</h2>
+            <button class="btn btn-primary" onclick="showPatientForm()">Add Patient</button>
+            <div id="patient-list" class="patient-list"></div>
+        </section>
+
+        <section id="catalogue" class="section">
+            <h2>Catalogue</h2>
+            <h3>Phenomenon Types</h3>
+            <button class="btn btn-primary" onclick="showPhenomenonTypeForm()">Add Phenomenon Type</button>
+            <div id="phenomenon-types-list"></div>
+            
+            <h3>Protocols</h3>
+            <button class="btn btn-primary" onclick="showProtocolForm()">Add Protocol</button>
+            <div id="protocols-list"></div>
+        </section>
+
+        <section id="logs" class="section">
+            <h2>Logs</h2>
+            <h3>Command Log</h3>
+            <div id="command-log"></div>
+            
+            <h3>Audit Log</h3>
+            <div id="audit-log"></div>
+        </section>
+    </main>
+
+    <div id="modal" class="modal"></div>
+
+    <script>
+        function switchSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            
+            if (sectionId === 'patients') loadPatients();
+            if (sectionId === 'catalogue') loadCatalogue();
+            if (sectionId === 'logs') loadLogs();
+        }
+
+        async function loadPatients() {
+            try {
+                const response = await fetch(`${API_BASE}/patients`);
+                const patients = await response.json();
+                const list = document.getElementById('patient-list');
+                
+                if (patients.length === 0) {
+                    list.innerHTML = '<p>No patients found</p>';
+                    return;
+                }
+                
+                list.innerHTML = patients.map(p => `
+                    <div class="patient-card" onclick="viewPatient(${p.id})">
+                        <h3>${p.fullName}</h3>
+                        <p><strong>Birth:</strong> ${p.dateOfBirth}</p>
+                        <p><strong>Note:</strong> ${p.note || 'N/A'}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading patients:', error);
+            }
+        }
+
+        function showPatientForm() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Add Patient</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="createPatient(event)">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="fullName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Birth</label>
+                            <input type="date" id="dateOfBirth" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Note</label>
+                            <textarea id="patientNote"></textarea>
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        async function createPatient(event) {
+            event.preventDefault();
+            
+            const patient = {
+                fullName: document.getElementById('fullName').value,
+                dateOfBirth: document.getElementById('dateOfBirth').value,
+                note: document.getElementById('patientNote').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/patients`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(patient)
+                });
+                
+                if (response.ok) {
+                    closeModal();
+                    loadPatients();
+                }
+            } catch (error) {
+                alert('Error creating patient: ' + error.message);
+            }
+        }
+
+        async function viewPatient(patientId) {
+            try {
+                const response = await fetch(`${API_BASE}/patients/${patientId}`);
+                const patient = await response.json();
+                
+                const obsResponse = await fetch(`${API_BASE}/patients/${patientId}/observations`);
+                const observations = await obsResponse.json();
+                
+                showPatientDetail(patient, observations);
+            } catch (error) {
+                console.error('Error loading patient:', error);
+            }
+        }
+
+        function showPatientDetail(patient, observations) {
+            const modal = document.getElementById('modal');
+            const obsHtml = observations.length > 0 
+                ? observations.map(o => `
+                    <div class="list-item">
+                        <p><strong>Type:</strong> ${o.class ? (o.class.includes('Measurement') ? 'Measurement' : 'Category') : 'Unknown'}</p>
+                        <p><strong>Value:</strong> ${o.amount || o.presence || 'N/A'}</p>
+                        <p><strong>Recorded:</strong> ${o.recordingTime}</p>
+                        <p><strong>Status:</strong> ${o.status}</p>
+                    </div>
+                `).join('')
+                : '<p>No observations</p>';
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>${patient.fullName}</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <p><strong>Birth:</strong> ${patient.dateOfBirth}</p>
+                    <p><strong>Note:</strong> ${patient.note || 'N/A'}</p>
+                    
+                    <h3>Observations</h3>
+                    <div>${obsHtml}</div>
+                    
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="showRecordMeasurementForm(${patient.id})">Record Measurement</button>
+                        <button class="btn btn-primary" onclick="showRecordCategoryForm(${patient.id})">Record Category</button>
+                        <button class="btn btn-success" onclick="evaluateRules(${patient.id})">Evaluate Rules</button>
+                    </div>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        function showRecordMeasurementForm(patientId) {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Record Measurement</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="recordMeasurement(event, ${patientId})">
+                        <div class="form-group">
+                            <label>Phenomenon Type ID</label>
+                            <input type="number" id="phenomenonTypeId" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount</label>
+                            <input type="number" id="amount" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Unit</label>
+                            <input type="text" id="unit" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Protocol ID (optional)</label>
+                            <input type="number" id="protocolId">
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Record</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        async function recordMeasurement(event, patientId) {
+            event.preventDefault();
+            
+            const data = {
+                patientId: patientId,
+                phenomenonTypeId: parseInt(document.getElementById('phenomenonTypeId').value),
+                amount: parseFloat(document.getElementById('amount').value),
+                unit: document.getElementById('unit').value,
+                protocolId: document.getElementById('protocolId').value ? parseInt(document.getElementById('protocolId').value) : null,
+                applicabilityTime: new Date().toISOString()
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/observations/measurement`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal();
+                    viewPatient(patientId);
+                }
+            } catch (error) {
+                alert('Error recording measurement: ' + error.message);
+            }
+        }
+
+        function showRecordCategoryForm(patientId) {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Record Category Observation</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="recordCategory(event, ${patientId})">
+                        <div class="form-group">
+                            <label>Phenomenon ID</label>
+                            <input type="number" id="phenomenonId" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Presence</label>
+                            <select id="presence" required>
+                                <option value="">Select...</option>
+                                <option value="PRESENT">Present</option>
+                                <option value="ABSENT">Absent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Protocol ID (optional)</label>
+                            <input type="number" id="protocolId2">
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Record</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        async function recordCategory(event, patientId) {
+            event.preventDefault();
+            
+            const data = {
+                patientId: patientId,
+                phenomenonId: parseInt(document.getElementById('phenomenonId').value),
+                presence: document.getElementById('presence').value,
+                protocolId: document.getElementById('protocolId2').value ? parseInt(document.getElementById('protocolId2').value) : null,
+                applicabilityTime: new Date().toISOString()
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/observations/category`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal();
+                    viewPatient(patientId);
+                }
+            } catch (error) {
+                alert('Error recording category: ' + error.message);
+            }
+        }
+
+        async function evaluateRules(patientId) {
+            try {
+                const response = await fetch(`${API_BASE}/patients/${patientId}/evaluate`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                alert('Inferences: ' + (Array.isArray(result) ? result.join(', ') : JSON.stringify(result)));
+            } catch (error) {
+                alert('Error evaluating rules: ' + error.message);
+            }
+        }
+
+        function showPhenomenonTypeForm() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Add Phenomenon Type</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="createPhenomenonType(event)">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="ptName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Kind</label>
+                            <select id="ptKind" required>
+                                <option value="">Select...</option>
+                                <option value="QUANTITATIVE">Quantitative</option>
+                                <option value="QUALITATIVE">Qualitative</option>
+                            </select>
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        async function createPhenomenonType(event) {
+            event.preventDefault();
+            
+            const data = {
+                name: document.getElementById('ptName').value,
+                kind: document.getElementById('ptKind').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/phenomenon-types`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal();
+                    loadCatalogue();
+                }
+            } catch (error) {
+                alert('Error creating phenomenon type: ' + error.message);
+            }
+        }
+
+        function showProtocolForm() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Add Protocol</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="createProtocol(event)">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="protName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="protDesc"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Accuracy Rating</label>
+                            <select id="protRating" required>
+                                <option value="">Select...</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        async function createProtocol(event) {
+            event.preventDefault();
+            
+            const data = {
+                name: document.getElementById('protName').value,
+                description: document.getElementById('protDesc').value,
+                accuracyRating: document.getElementById('protRating').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/protocols`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal();
+                    loadCatalogue();
+                }
+            } catch (error) {
+                alert('Error creating protocol: ' + error.message);
+            }
+        }
+
+        async function loadCatalogue() {
+            try {
+                const ptResponse = await fetch(`${API_BASE}/phenomenon-types`);
+                const phenomenonTypes = await ptResponse.json();
+                const ptList = document.getElementById('phenomenon-types-list');
+                ptList.innerHTML = phenomenonTypes.map(pt => `
+                    <div class="list-item">
+                        <p><strong>${pt.name}</strong> - ${pt.kind}</p>
+                    </div>
+                `).join('');
+                
+                const prResponse = await fetch(`${API_BASE}/protocols`);
+                const protocols = await prResponse.json();
+                const prList = document.getElementById('protocols-list');
+                prList.innerHTML = protocols.map(pr => `
+                    <div class="list-item">
+                        <p><strong>${pr.name}</strong> - ${pr.accuracyRating}</p>
+                        <p>${pr.description}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading catalogue:', error);
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const cmdResponse = await fetch(`${API_BASE}/command-log`);
+                const commandLog = await cmdResponse.json();
+                const cmdList = document.getElementById('command-log');
+                cmdList.innerHTML = commandLog.map(entry => `
+                    <div class="list-item">
+                        <p><strong>${entry.commandType}</strong> - ${entry.executedAt}</p>
+                        <p>User: ${entry.user}</p>
+                    </div>
+                `).join('');
+                
+                const auditResponse = await fetch(`${API_BASE}/audit-log`);
+                const auditLog = await auditResponse.json();
+                const auditList = document.getElementById('audit-log');
+                auditList.innerHTML = auditLog.map(entry => `
+                    <div class="list-item">
+                        <p><strong>${entry.event}</strong></p>
+                        <p>Patient ID: ${entry.patientId} - Observation ID: ${entry.observationId}</p>
+                        <p>${entry.timestamp}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading logs:', error);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadPatients();
+        });
+    </script>
+</body>
+</html>

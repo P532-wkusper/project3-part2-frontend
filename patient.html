@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Detail - Patient Observation Tracker</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="navbar">
+        <h1>Patient Observation Tracker</h1>
+        <nav>
+            <a href="index.html">Patients</a>
+            <a href="catalogue.html">Catalogue</a>
+            <a href="logs.html">Logs</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <a href="index.html" class="back-link">← Back to Patients</a>
+        <h2 id="patient-name">Patient</h2>
+        
+        <div id="alert"></div>
+
+        <div id="patient-info" class="card"></div>
+
+        <h3>Observations</h3>
+        <div class="actions">
+            <button class="btn btn-primary" onclick="showRecordMeasurementModal()">Record Measurement</button>
+            <button class="btn btn-primary" onclick="showRecordCategoryModal()">Record Category</button>
+            <button class="btn btn-success" onclick="evaluateRules()">Evaluate Rules</button>
+        </div>
+        <div id="observations-list"></div>
+    </div>
+
+    <div id="modal" class="modal"></div>
+
+    <script>
+        const API_BASE = 'https://patient-tracking-part1.onrender.com/api';
+        const params = new URLSearchParams(window.location.search);
+        const patientId = params.get('id');
+
+        function loadPatient() {
+            if (!patientId) return;
+
+            Promise.all([
+                fetch(`${API_BASE}/patients/${patientId}`).then(r => r.json()),
+                fetch(`${API_BASE}/patients/${patientId}/observations`).then(r => r.json())
+            ])
+                .then(([patient, observations]) => {
+                    document.getElementById('patient-name').textContent = patient.fullName;
+                    document.getElementById('patient-info').innerHTML = `
+                        <div class="card-header"><h3>${patient.fullName}</h3></div>
+                        <p><strong>DOB:</strong> ${patient.dateOfBirth}</p>
+                        <p><strong>Note:</strong> ${patient.note || 'N/A'}</p>
+                    `;
+
+                    const list = document.getElementById('observations-list');
+                    if (observations.length === 0) {
+                        list.innerHTML = '<p>No observations recorded</p>';
+                        return;
+                    }
+
+                    list.innerHTML = observations.map(o => `
+                        <div class="observation-card ${o.status === 'REJECTED' ? 'rejected' : ''}">
+                            <p><strong>Type:</strong> ${o.class?.includes('Measurement') ? 'Measurement' : o.class?.includes('CategoryObservation') ? 'Category' : 'Unknown'}</p>
+                            <p><strong>Value:</strong> ${o.amount || o.presence || 'N/A'}</p>
+                            ${o.unit ? `<p><strong>Unit:</strong> ${o.unit}</p>` : ''}
+                            <p><strong>Recorded:</strong> ${new Date(o.recordingTime).toLocaleString()}</p>
+                            <p><strong>Status:</strong> <span class="status-${o.status.toLowerCase()}">${o.status}</span></p>
+                            ${o.status === 'ACTIVE' ? `<button class="btn btn-danger" onclick="rejectObservation(${o.id})">Reject</button>` : ''}
+                        </div>
+                    `).join('');
+                })
+                .catch(e => showAlert('Error loading patient: ' + e.message, 'error'));
+        }
+
+        function showRecordMeasurementModal() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Record Measurement</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="recordMeasurement(event)">
+                        <div class="form-group">
+                            <label>Phenomenon Type ID</label>
+                            <input type="number" id="phenomenonTypeId" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount</label>
+                            <input type="number" id="amount" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Unit</label>
+                            <input type="text" id="unit" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Protocol ID (optional)</label>
+                            <input type="number" id="protocolId">
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Record</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        function recordMeasurement(e) {
+            e.preventDefault();
+            const data = {
+                patientId: parseInt(patientId),
+                phenomenonTypeId: parseInt(document.getElementById('phenomenonTypeId').value),
+                amount: parseFloat(document.getElementById('amount').value),
+                unit: document.getElementById('unit').value,
+                protocolId: document.getElementById('protocolId').value ? parseInt(document.getElementById('protocolId').value) : null,
+                applicabilityTime: new Date().toISOString()
+            };
+
+            fetch(`${API_BASE}/observations/measurement`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed')))
+                .then(() => {
+                    closeModal();
+                    loadPatient();
+                    showAlert('Measurement recorded', 'success');
+                })
+                .catch(e => showAlert('Error: ' + e.message, 'error'));
+        }
+
+        function showRecordCategoryModal() {
+            const modal = document.getElementById('modal');
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Record Category Observation</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="recordCategory(event)">
+                        <div class="form-group">
+                            <label>Phenomenon ID</label>
+                            <input type="number" id="phenomenonId" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Presence</label>
+                            <select id="presence" required>
+                                <option value="">Select...</option>
+                                <option value="PRESENT">Present</option>
+                                <option value="ABSENT">Absent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Protocol ID (optional)</label>
+                            <input type="number" id="protocolId2">
+                        </div>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Record</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        function recordCategory(e) {
+            e.preventDefault();
+            const data = {
+                patientId: parseInt(patientId),
+                phenomenonId: parseInt(document.getElementById('phenomenonId').value),
+                presence: document.getElementById('presence').value,
+                protocolId: document.getElementById('protocolId2').value ? parseInt(document.getElementById('protocolId2').value) : null,
+                applicabilityTime: new Date().toISOString()
+            };
+
+            fetch(`${API_BASE}/observations/category`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed')))
+                .then(() => {
+                    closeModal();
+                    loadPatient();
+                    showAlert('Category observation recorded', 'success');
+                })
+                .catch(e => showAlert('Error: ' + e.message, 'error'));
+        }
+
+        function rejectObservation(obsId) {
+            const reason = prompt('Enter rejection reason:');
+            if (!reason) return;
+
+            const data = { observationId: obsId, reason: reason };
+            fetch(`${API_BASE}/observations/${obsId}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed')))
+                .then(() => {
+                    loadPatient();
+                    showAlert('Observation rejected', 'success');
+                })
+                .catch(e => showAlert('Error: ' + e.message, 'error'));
+        }
+
+        function evaluateRules() {
+            fetch(`${API_BASE}/patients/${patientId}/evaluate`, { method: 'POST' })
+                .then(r => r.json())
+                .then(result => {
+                    const msg = Array.isArray(result) ? result.join(', ') : JSON.stringify(result);
+                    alert('Inferences: ' + (msg || 'None'));
+                })
+                .catch(e => showAlert('Error: ' + e.message, 'error'));
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        function showAlert(msg, type) {
+            const alert = document.getElementById('alert');
+            alert.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+            setTimeout(() => alert.innerHTML = '', 5000);
+        }
+
+        loadPatient();
+    </script>
+</body>
+</html>

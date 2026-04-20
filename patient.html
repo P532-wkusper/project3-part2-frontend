@@ -61,16 +61,25 @@
                         return;
                     }
 
-                    list.innerHTML = observations.map(o => `
-                        <div class="observation-card ${o.status === 'REJECTED' ? 'rejected' : ''}">
-                            <p><strong>Type:</strong> ${o.class?.includes('Measurement') ? 'Measurement' : o.class?.includes('CategoryObservation') ? 'Category' : 'Unknown'}</p>
-                            <p><strong>Value:</strong> ${o.amount || o.presence || 'N/A'}</p>
-                            ${o.unit ? `<p><strong>Unit:</strong> ${o.unit}</p>` : ''}
-                            <p><strong>Recorded:</strong> ${new Date(o.recordingTime).toLocaleString()}</p>
-                            <p><strong>Status:</strong> <span class="status-${o.status.toLowerCase()}">${o.status}</span></p>
-                            ${o.status === 'ACTIVE' ? `<button class="btn btn-danger" onclick="rejectObservation(${o.id})">Reject</button>` : ''}
-                        </div>
-                    `).join('');
+                    list.innerHTML = observations.map(o => {
+                        let typeDisplay = 'Unknown';
+                        if (o.phenomenonType && o.phenomenonType.name) {
+                            typeDisplay = o.phenomenonType.name;
+                        } else if (o.phenomenon && o.phenomenon.phenomenonType && o.phenomenon.phenomenonType.name) {
+                            typeDisplay = o.phenomenon.phenomenonType.name;
+                        }
+                        
+                        return `
+                            <div class="observation-card ${o.status === 'REJECTED' ? 'rejected' : ''}">
+                                <p><strong>Type:</strong> ${typeDisplay}</p>
+                                <p><strong>Value:</strong> ${o.amount || o.presence || 'N/A'}</p>
+                                ${o.unit ? `<p><strong>Unit:</strong> ${o.unit}</p>` : ''}
+                                <p><strong>Recorded:</strong> ${new Date(o.recordingTime).toLocaleString()}</p>
+                                <p><strong>Status:</strong> <span class="status-${o.status.toLowerCase()}">${o.status}</span></p>
+                                ${o.status === 'ACTIVE' ? `<button class="btn btn-danger" onclick="rejectObservation(${o.id})">Reject</button>` : ''}
+                            </div>
+                        `;
+                    }).join('');
                 })
                 .catch(e => showAlert('Error loading patient: ' + e.message, 'error'));
         }

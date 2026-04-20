@@ -537,6 +537,7 @@
                 ? observations.map(o => `
                     <div class="list-item">
                         <p><strong>Type:</strong> ${o.phenomenon?.phenomenonType?.name ?? o.type ?? 'Unknown'}</p>
+                        <p><strong>Phenomenon:</strong> ${o.phenomenon?.name ?? 'N/A'}</p>
                         <p><strong>Value:</strong> ${o.amount || o.presence || 'N/A'}</p>
                         <p><strong>Recorded:</strong> ${o.recordingTime}</p>
                         <p><strong>Status:</strong> ${o.status}</p>

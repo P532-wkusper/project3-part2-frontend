@@ -101,17 +101,15 @@
                 return;
             }
 
-            container.innerHTML = phenomena
-                .map(p => `
-                    <div class="list-item" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                        <div>
-                            <h4>${escapeHtml(p.name)}</h4>
-                            <p><strong>ID:</strong> ${p.id}</p>
-                        </div>
-                        <button class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; flex-shrink: 0; white-space: nowrap;" onclick="deletePhenomenonAndRefresh(${p.id})">Delete</button>
+            container.innerHTML = phenomena.map(p => `
+                <div class="list-item" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${escapeHtml(p.name)}</strong>
+                        <p>ID: ${p.id}</p>
                     </div>
-                `)
-                .join('');
+                    <button class="btn btn-danger" onclick="deletePhenomenonAndRefresh(${p.id})">Delete</button>
+                </div>
+            `).join('');
         }
 
         function loadPhenomenaForSelectedType() {

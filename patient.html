@@ -63,13 +63,10 @@
 
                     list.innerHTML = observations.map(o => {
                         let typeDisplay = 'Unknown';
-                        console.log('Observation object:', o);
-                        console.log('Has phenomenonType?', o.phenomenonType);
-                        console.log('Has phenomenon?', o.phenomenon);
                         
-                        if (o.phenomenonType && o.phenomenonType.name) {
+                        if (o.phenomenonType?.name) {
                             typeDisplay = o.phenomenonType.name;
-                        } else if (o.phenomenon && o.phenomenon.phenomenonType && o.phenomenon.phenomenonType.name) {
+                        } else if (o.phenomenon?.phenomenonType?.name) {
                             typeDisplay = o.phenomenon.phenomenonType.name;
                         }
                         

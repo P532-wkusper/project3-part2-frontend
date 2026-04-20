@@ -102,12 +102,12 @@
             }
 
             container.innerHTML = phenomena.map(p => `
-                <div class="list-item" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="list-item" style="display: flex !important; justify-content: space-between; align-items: center; overflow: visible !important;">
                     <div>
                         <strong>${escapeHtml(p.name)}</strong>
                         <p>ID: ${p.id}</p>
                     </div>
-                    <button class="btn btn-danger" onclick="deletePhenomenonAndRefresh(${p.id})">Delete</button>
+                    <button onclick="deletePhenomenonAndRefresh(${p.id})" style="background: #e74c3c; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; flex-shrink: 0;">Delete</button>
                 </div>
             `).join('');
         }

@@ -536,7 +536,7 @@
             const obsHtml = observations.length > 0 
                 ? observations.map(o => `
                     <div class="list-item">
-                        <p><strong>Type:</strong> ${o.class ? (o.class.includes('Measurement') ? 'Measurement' : 'Category') : 'Unknown'}</p>
+                        <p><strong>Type:</strong> ${o.phenomenon?.phenomenonType?.name ?? o.type ?? 'Unknown'}</p>
                         <p><strong>Value:</strong> ${o.amount || o.presence || 'N/A'}</p>
                         <p><strong>Recorded:</strong> ${o.recordingTime}</p>
                         <p><strong>Status:</strong> ${o.status}</p>

@@ -1162,7 +1162,7 @@
 
                         <div class="form-group">
                             <label>Phenomenon Type</label>
-                            <select class="condition-phenomenon-type" onchange="updateConditionOperators(this)" required>
+                            <select class="condition-phenomenon-type" onchange="updateConditionOperatorsAndPhenomena(this)" required>
                                 <option value="">Select...</option>
                                 <optgroup label="Quantitative">
                                     ${quantTypes.map(pt => `<option value="${pt.id}" data-kind="QUANTITATIVE">${escapeHtml(pt.name)}</option>`).join('')}
@@ -1170,6 +1170,13 @@
                                 <optgroup label="Qualitative">
                                     ${qualTypes.map(pt => `<option value="${pt.id}" data-kind="QUALITATIVE">${escapeHtml(pt.name)}</option>`).join('')}
                                 </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-group condition-specific-phenomenon-group" style="display: none;">
+                            <label>Or Select Specific Phenomenon (optional)</label>
+                            <select class="condition-specific-phenomenon">
+                                <option value="">-- Use entire type --</option>
                             </select>
                         </div>
 
@@ -1204,19 +1211,22 @@
                     </div>
                 `;
                 container.innerHTML += fieldHtml;
-                updateConditionOperators(container.querySelector('.condition-field:last-child .condition-phenomenon-type'));
+                updateConditionOperatorsAndPhenomena(container.querySelector('.condition-field:last-child .condition-phenomenon-type'));
             });
         }
 
-        function updateConditionOperators(select) {
+        function updateConditionOperatorsAndPhenomena(select) {
             const field = select.closest('.condition-field');
             const selectedOption = select.options[select.selectedIndex];
             const kind = selectedOption.getAttribute('data-kind');
+            const typeId = select.value;
             
             const operatorSelect = field.querySelector('.condition-operator');
             const valueGroup = field.querySelector('.condition-value-group');
+            const specificPhenomenonGroup = field.querySelector('.condition-specific-phenomenon-group');
+            const specificPhenomenonSelect = field.querySelector('.condition-specific-phenomenon');
             
-            // Hide all options first
+            // Hide all operator options first
             Array.from(operatorSelect.options).forEach(opt => opt.style.display = 'none');
             
             if (kind === 'QUANTITATIVE') {
@@ -1224,10 +1234,29 @@
                 operatorSelect.querySelector('.quant-op:nth-of-type(2)').style.display = '';
                 operatorSelect.querySelector('.quant-op:nth-of-type(3)').style.display = '';
                 valueGroup.style.display = 'block';
+                specificPhenomenonGroup.style.display = 'none';
             } else if (kind === 'QUALITATIVE') {
                 operatorSelect.querySelector('.qual-op:nth-of-type(1)').style.display = '';
                 operatorSelect.querySelector('.qual-op:nth-of-type(2)').style.display = '';
                 valueGroup.style.display = 'none';
+                specificPhenomenonGroup.style.display = 'block';
+                
+                // Load phenomena for this qualitative type
+                if (typeId) {
+                    fetch(`${API_BASE}/phenomenon-types/${typeId}/phenomena`)
+                        .then(r => r.json())
+                        .then(phenomena => {
+                            if (phenomena && phenomena.length > 0) {
+                                specificPhenomenonSelect.innerHTML = '<option value="">-- Use entire type --</option>' + 
+                                    phenomena.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+                            } else {
+                                specificPhenomenonSelect.innerHTML = '<option value="">-- No phenomena defined --</option>';
+                            }
+                        })
+                        .catch(() => {
+                            specificPhenomenonSelect.innerHTML = '<option value="">-- Error loading phenomena --</option>';
+                        });
+                }
             }
             
             operatorSelect.value = '';
@@ -1270,14 +1299,22 @@
                 const operator = field.querySelector('.condition-operator').value;
                 const comparisonValue = field.querySelector('.condition-value').value;
                 const logicalOperator = field.querySelector('.condition-logical-op').value;
+                const specificPhenomenonId = field.querySelector('.condition-specific-phenomenon')?.value;
                 
                 if (phenomenonTypeId && operator) {
-                    conditions.push({
+                    const condition = {
                         phenomenonTypeId: phenomenonTypeId,
                         operator: operator,
                         comparisonValue: operator.match(/[><]|=/) ? (comparisonValue ? parseFloat(comparisonValue) : null) : null,
                         logicalOperator: logicalOperator
-                    });
+                    };
+                    
+                    // Add specific phenomenon if selected
+                    if (specificPhenomenonId) {
+                        condition.specificPhenomenonId = parseInt(specificPhenomenonId);
+                    }
+                    
+                    conditions.push(condition);
                 }
             });
             
@@ -1396,7 +1433,7 @@
 
                         <div class="form-group">
                             <label>Phenomenon Type</label>
-                            <select class="condition-phenomenon-type" value="${cond.phenomenonTypeId}" onchange="updateConditionOperators(this)" required>
+                            <select class="condition-phenomenon-type" value="${cond.phenomenonTypeId}" onchange="updateConditionOperatorsAndPhenomena(this)" required>
                                 <option value="">Select...</option>
                                 <optgroup label="Quantitative">
                                     ${quantTypes.map(pt => `<option value="${pt.id}" data-kind="QUANTITATIVE" ${pt.id == cond.phenomenonTypeId ? 'selected' : ''}>${escapeHtml(pt.name)}</option>`).join('')}
@@ -1404,6 +1441,13 @@
                                 <optgroup label="Qualitative">
                                     ${qualTypes.map(pt => `<option value="${pt.id}" data-kind="QUALITATIVE" ${pt.id == cond.phenomenonTypeId ? 'selected' : ''}>${escapeHtml(pt.name)}</option>`).join('')}
                                 </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-group condition-specific-phenomenon-group" style="display: none;">
+                            <label>Or Select Specific Phenomenon (optional)</label>
+                            <select class="condition-specific-phenomenon">
+                                <option value="">-- Use entire type --</option>
                             </select>
                         </div>
 
@@ -1440,9 +1484,9 @@
                 container.innerHTML += fieldHtml;
             });
             
-            // Set initial operator visibility
+            // Set initial operator visibility and load phenomena for each condition
             document.querySelectorAll('.condition-phenomenon-type').forEach(select => {
-                updateConditionOperators(select);
+                updateConditionOperatorsAndPhenomena(select);
             });
         }
 
@@ -1458,14 +1502,22 @@
                 const operator = field.querySelector('.condition-operator').value;
                 const comparisonValue = field.querySelector('.condition-value').value;
                 const logicalOperator = field.querySelector('.condition-logical-op').value;
+                const specificPhenomenonId = field.querySelector('.condition-specific-phenomenon')?.value;
                 
                 if (phenomenonTypeId && operator) {
-                    conditions.push({
+                    const condition = {
                         phenomenonTypeId: phenomenonTypeId,
                         operator: operator,
                         comparisonValue: operator.match(/[><]|=/) ? (comparisonValue ? parseFloat(comparisonValue) : null) : null,
                         logicalOperator: logicalOperator
-                    });
+                    };
+                    
+                    // Add specific phenomenon if selected
+                    if (specificPhenomenonId) {
+                        condition.specificPhenomenonId = parseInt(specificPhenomenonId);
+                    }
+                    
+                    conditions.push(condition);
                 }
             });
             

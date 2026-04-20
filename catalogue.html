@@ -36,6 +36,12 @@
         </div>
 
         <div class="card">
+            <h3>Diagnostic Rules</h3>
+            <button class="btn btn-primary" onclick="showAddRuleModal()">Add Diagnostic Rule</button>
+            <div id="rules-list" class="list"></div>
+        </div>
+
+        <div class="card">
             <h3>Phenomena</h3>
             <div class="form-group">
                 <label for="phenomenonTypeSelect">Qualitative Phenomenon Type</label>
@@ -162,9 +168,10 @@
         function loadCatalogue() {
             Promise.all([
                 fetch(`${API_BASE}/phenomenon-types`).then(r => r.json()),
-                fetch(`${API_BASE}/protocols`).then(r => r.json())
+                fetch(`${API_BASE}/protocols`).then(r => r.json()),
+                fetch(`${API_BASE}/rules`).then(r => r.json())
             ])
-                .then(([phenomenonTypes, protocols]) => {
+                .then(([phenomenonTypes, protocols, rules]) => {
                     const ptList = document.getElementById('phenomenon-types-list');
                     ptList.innerHTML = phenomenonTypes.map(pt => {
                         let html = `
@@ -191,6 +198,26 @@
                             <p>${pr.description || 'N/A'}</p>
                         </div>
                     `).join('');
+
+                    const rlList = document.getElementById('rules-list');
+                    rlList.innerHTML = rules.map(rule => {
+                        const conditionsText = rule.conditions.map(c => {
+                            const op = c.operator === '>' ? 'greater than' : c.operator === '<' ? 'less than' : c.operator === '=' ? 'equals' : c.operator;
+                            const value = c.comparisonValue ? ` ${c.comparisonValue}` : '';
+                            return `${c.phenomenonTypeName} ${op}${value}`;
+                        }).join(', ');
+                        return `
+                            <div class="list-item">
+                                <h4>${escapeHtml(rule.name)}</h4>
+                                <p><strong>Conditions:</strong> ${conditionsText || 'No conditions'}</p>
+                                <p><strong>Then infer:</strong> ${escapeHtml(rule.productConceptName)}</p>
+                                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                    <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="showEditRuleModal(${rule.id})">Edit</button>
+                                    <button class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="deleteRule(${rule.id})">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                 })
                 .catch(e => showAlert('Error loading catalogue: ' + e.message, 'error'));
         }
@@ -415,6 +442,359 @@
 
         function closeModal() {
             document.getElementById('modal').classList.remove('active');
+        }
+
+        async function showAddRuleModal() {
+            const phenomenonTypes = await fetch(`${API_BASE}/phenomenon-types`).then(r => r.json());
+            const modal = document.getElementById('modal');
+            
+            const quantTypes = phenomenonTypes.filter(pt => pt.kind === 'QUANTITATIVE');
+            const qualTypes = phenomenonTypes.filter(pt => pt.kind === 'QUALITATIVE');
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <h2>Add Diagnostic Rule</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="createRule(event)">
+                        <div class="form-group">
+                            <label for="ruleName">Rule Name</label>
+                            <input type="text" id="ruleName" placeholder="e.g., High Blood Pressure Alert" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ruleProductConcept">Then Infer (Result Phenomenon Type)</label>
+                            <select id="ruleProductConcept" required>
+                                <option value="">Select phenomenon type...</option>
+                                ${phenomenonTypes.map(pt => `<option value="${pt.id}">${escapeHtml(pt.name)}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">
+                        <h3>Conditions (If all true, then infer result)</h3>
+                        <div id="conditions-container"></div>
+
+                        <button type="button" class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" onclick="addConditionField()">+ Add Condition</button>
+
+                        <div class="actions" style="margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create Rule</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+            
+            // Initialize with one condition field
+            addConditionField();
+        }
+
+        function addConditionField() {
+            const container = document.getElementById('conditions-container');
+            const index = container.children.length;
+            
+            fetch(`${API_BASE}/phenomenon-types`).then(r => r.json()).then(phenomenonTypes => {
+                const quantTypes = phenomenonTypes.filter(pt => pt.kind === 'QUANTITATIVE');
+                const qualTypes = phenomenonTypes.filter(pt => pt.kind === 'QUALITATIVE');
+                
+                const fieldHtml = `
+                    <div class="condition-field" style="background: #f9f9f9; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border: 1px solid #ddd;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <label style="margin: 0;">Condition ${index + 1}</label>
+                            <button type="button" class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="this.closest('.condition-field').remove()">Remove</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Phenomenon Type</label>
+                            <select class="condition-phenomenon-type" onchange="updateConditionOperators(this)" required>
+                                <option value="">Select...</option>
+                                <optgroup label="Quantitative">
+                                    ${quantTypes.map(pt => `<option value="${pt.id}" data-kind="QUANTITATIVE">${escapeHtml(pt.name)}</option>`).join('')}
+                                </optgroup>
+                                <optgroup label="Qualitative">
+                                    ${qualTypes.map(pt => `<option value="${pt.id}" data-kind="QUALITATIVE">${escapeHtml(pt.name)}</option>`).join('')}
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Condition Type</label>
+                            <select class="condition-operator" required>
+                                <option value="">Select...</option>
+                                <optgroup label="Quantitative">
+                                    <option value=">" class="quant-op">Greater than (&gt;)</option>
+                                    <option value="<" class="quant-op">Less than (&lt;)</option>
+                                    <option value="=" class="quant-op">Equals (=)</option>
+                                </optgroup>
+                                <optgroup label="Qualitative">
+                                    <option value="PRESENT" class="qual-op">Is Present</option>
+                                    <option value="ABSENT" class="qual-op">Is Absent</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-group condition-value-group" style="display: none;">
+                            <label>Value</label>
+                            <input type="number" step="0.01" class="condition-value" placeholder="e.g., 72">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Logical Operator (to next condition)</label>
+                            <select class="condition-logical-op">
+                                <option value="AND">AND (all must be true)</option>
+                                <option value="OR">OR (any can be true)</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += fieldHtml;
+                updateConditionOperators(container.querySelector('.condition-field:last-child .condition-phenomenon-type'));
+            });
+        }
+
+        function updateConditionOperators(select) {
+            const field = select.closest('.condition-field');
+            const selectedOption = select.options[select.selectedIndex];
+            const kind = selectedOption.getAttribute('data-kind');
+            
+            const operatorSelect = field.querySelector('.condition-operator');
+            const valueGroup = field.querySelector('.condition-value-group');
+            
+            // Hide all options first
+            Array.from(operatorSelect.options).forEach(opt => opt.style.display = 'none');
+            
+            if (kind === 'QUANTITATIVE') {
+                operatorSelect.querySelector('.quant-op:nth-of-type(1)').style.display = '';
+                operatorSelect.querySelector('.quant-op:nth-of-type(2)').style.display = '';
+                operatorSelect.querySelector('.quant-op:nth-of-type(3)').style.display = '';
+                valueGroup.style.display = 'block';
+            } else if (kind === 'QUALITATIVE') {
+                operatorSelect.querySelector('.qual-op:nth-of-type(1)').style.display = '';
+                operatorSelect.querySelector('.qual-op:nth-of-type(2)').style.display = '';
+                valueGroup.style.display = 'none';
+            }
+            
+            operatorSelect.value = '';
+        }
+
+        function createRule(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('ruleName').value;
+            const productConceptId = document.getElementById('ruleProductConcept').value;
+            const conditions = [];
+            
+            document.querySelectorAll('.condition-field').forEach(field => {
+                const phenomenonTypeId = field.querySelector('.condition-phenomenon-type').value;
+                const operator = field.querySelector('.condition-operator').value;
+                const comparisonValue = field.querySelector('.condition-value').value;
+                const logicalOperator = field.querySelector('.condition-logical-op').value;
+                
+                if (phenomenonTypeId && operator) {
+                    conditions.push({
+                        phenomenonTypeId: phenomenonTypeId,
+                        operator: operator,
+                        comparisonValue: operator.match(/[><]|=/) ? (comparisonValue ? parseFloat(comparisonValue) : null) : null,
+                        logicalOperator: logicalOperator
+                    });
+                }
+            });
+            
+            if (conditions.length === 0) {
+                showAlert('Add at least one condition', 'error');
+                return;
+            }
+            
+            const payload = {
+                name: name,
+                productConceptId: productConceptId,
+                conditions: conditions
+            };
+            
+            fetch(`${API_BASE}/rules`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to create rule')))
+                .then(() => {
+                    closeModal();
+                    loadCatalogue();
+                    showAlert('Diagnostic rule created', 'success');
+                })
+                .catch(e => showAlert('Error creating rule: ' + e.message, 'error'));
+        }
+
+        async function showEditRuleModal(ruleId) {
+            const rule = await fetch(`${API_BASE}/rules/${ruleId}`).then(r => r.json());
+            const phenomenonTypes = await fetch(`${API_BASE}/phenomenon-types`).then(r => r.json());
+            const modal = document.getElementById('modal');
+            
+            const quantTypes = phenomenonTypes.filter(pt => pt.kind === 'QUANTITATIVE');
+            const qualTypes = phenomenonTypes.filter(pt => pt.kind === 'QUALITATIVE');
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <h2>Edit Diagnostic Rule</h2>
+                        <button class="close-btn" onclick="closeModal()">×</button>
+                    </div>
+                    <form onsubmit="updateRule(event, ${ruleId})">
+                        <div class="form-group">
+                            <label for="ruleName">Rule Name</label>
+                            <input type="text" id="ruleName" value="${escapeHtml(rule.name)}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ruleProductConcept">Then Infer (Result Phenomenon Type)</label>
+                            <select id="ruleProductConcept" required>
+                                <option value="">Select phenomenon type...</option>
+                                ${phenomenonTypes.map(pt => `<option value="${pt.id}" ${pt.id == rule.productConceptId ? 'selected' : ''}>${escapeHtml(pt.name)}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">
+                        <h3>Conditions</h3>
+                        <div id="conditions-container"></div>
+
+                        <button type="button" class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" onclick="addConditionField()">+ Add Condition</button>
+
+                        <div class="actions" style="margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Update Rule</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            modal.classList.add('active');
+            
+            // Load existing conditions
+            const container = document.getElementById('conditions-container');
+            container.innerHTML = '';
+            rule.conditions.forEach((cond, idx) => {
+                const fieldHtml = `
+                    <div class="condition-field" style="background: #f9f9f9; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border: 1px solid #ddd;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <label style="margin: 0;">Condition ${idx + 1}</label>
+                            <button type="button" class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="this.closest('.condition-field').remove()">Remove</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Phenomenon Type</label>
+                            <select class="condition-phenomenon-type" value="${cond.phenomenonTypeId}" onchange="updateConditionOperators(this)" required>
+                                <option value="">Select...</option>
+                                <optgroup label="Quantitative">
+                                    ${quantTypes.map(pt => `<option value="${pt.id}" data-kind="QUANTITATIVE" ${pt.id == cond.phenomenonTypeId ? 'selected' : ''}>${escapeHtml(pt.name)}</option>`).join('')}
+                                </optgroup>
+                                <optgroup label="Qualitative">
+                                    ${qualTypes.map(pt => `<option value="${pt.id}" data-kind="QUALITATIVE" ${pt.id == cond.phenomenonTypeId ? 'selected' : ''}>${escapeHtml(pt.name)}</option>`).join('')}
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Condition Type</label>
+                            <select class="condition-operator" value="${cond.operator}" required>
+                                <option value="">Select...</option>
+                                <optgroup label="Quantitative">
+                                    <option value=">" class="quant-op" ${cond.operator === '>' ? 'selected' : ''}>Greater than (&gt;)</option>
+                                    <option value="<" class="quant-op" ${cond.operator === '<' ? 'selected' : ''}>Less than (&lt;)</option>
+                                    <option value="=" class="quant-op" ${cond.operator === '=' ? 'selected' : ''}>Equals (=)</option>
+                                </optgroup>
+                                <optgroup label="Qualitative">
+                                    <option value="PRESENT" class="qual-op" ${cond.operator === 'PRESENT' ? 'selected' : ''}>Is Present</option>
+                                    <option value="ABSENT" class="qual-op" ${cond.operator === 'ABSENT' ? 'selected' : ''}>Is Absent</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="form-group condition-value-group">
+                            <label>Value</label>
+                            <input type="number" step="0.01" class="condition-value" value="${cond.comparisonValue || ''}" placeholder="e.g., 72">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Logical Operator (to next condition)</label>
+                            <select class="condition-logical-op">
+                                <option value="AND" ${cond.logicalOperator === 'AND' ? 'selected' : ''}>AND (all must be true)</option>
+                                <option value="OR" ${cond.logicalOperator === 'OR' ? 'selected' : ''}>OR (any can be true)</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += fieldHtml;
+            });
+            
+            // Set initial operator visibility
+            document.querySelectorAll('.condition-phenomenon-type').forEach(select => {
+                updateConditionOperators(select);
+            });
+        }
+
+        function updateRule(event, ruleId) {
+            event.preventDefault();
+            
+            const name = document.getElementById('ruleName').value;
+            const productConceptId = document.getElementById('ruleProductConcept').value;
+            const conditions = [];
+            
+            document.querySelectorAll('.condition-field').forEach(field => {
+                const phenomenonTypeId = field.querySelector('.condition-phenomenon-type').value;
+                const operator = field.querySelector('.condition-operator').value;
+                const comparisonValue = field.querySelector('.condition-value').value;
+                const logicalOperator = field.querySelector('.condition-logical-op').value;
+                
+                if (phenomenonTypeId && operator) {
+                    conditions.push({
+                        phenomenonTypeId: phenomenonTypeId,
+                        operator: operator,
+                        comparisonValue: operator.match(/[><]|=/) ? (comparisonValue ? parseFloat(comparisonValue) : null) : null,
+                        logicalOperator: logicalOperator
+                    });
+                }
+            });
+            
+            if (conditions.length === 0) {
+                showAlert('Add at least one condition', 'error');
+                return;
+            }
+            
+            const payload = {
+                name: name,
+                productConceptId: productConceptId,
+                conditions: conditions
+            };
+            
+            fetch(`${API_BASE}/rules/${ruleId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to update rule')))
+                .then(() => {
+                    closeModal();
+                    loadCatalogue();
+                    showAlert('Diagnostic rule updated', 'success');
+                })
+                .catch(e => showAlert('Error updating rule: ' + e.message, 'error'));
+        }
+
+        function deleteRule(ruleId) {
+            if (confirm('Are you sure you want to delete this diagnostic rule?')) {
+                fetch(`${API_BASE}/rules/${ruleId}`, {
+                    method: 'DELETE'
+                })
+                    .then(r => {
+                        if (r.ok) {
+                            loadCatalogue();
+                            showAlert('Diagnostic rule deleted', 'success');
+                        } else {
+                            showAlert('Failed to delete rule', 'error');
+                        }
+                    })
+                    .catch(e => showAlert('Error deleting rule: ' + e.message, 'error'));
+            }
         }
 
         function showAlert(msg, type) {

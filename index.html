@@ -1060,6 +1060,11 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             loadPatients();
+            // Populate the phenomena dropdown on page load
+            fetch(`${API_BASE}/phenomenon-types`)
+                .then(r => r.json())
+                .then(types => updateQualitativeTypeDropdownCatalogue(types))
+                .catch(error => console.error('Error loading phenomenon types for dropdown:', error));
         });
     </script>
 </body>

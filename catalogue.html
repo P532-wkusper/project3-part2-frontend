@@ -13,6 +13,7 @@
             <a href="index.html">Patients</a>
             <a href="catalogue.html">Catalogue</a>
             <a href="logs.html">Logs</a>
+            <span id="user-info" style="margin-left: auto; font-size: 0.9rem;">Loading...</span>
         </nav>
     </div>
 
@@ -67,6 +68,26 @@
 
     <script>
         const API_BASE = 'https://patient-tracking-part1.onrender.com/api';
+        let currentUser = null;
+
+        function updateUserDisplay() {
+            const userInfo = document.getElementById('user-info');
+            if (currentUser) {
+                userInfo.textContent = `${currentUser.username} (${currentUser.role})`;
+            }
+        }
+
+        function initializeUser() {
+            const storedUser = localStorage.getItem('currentUser');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                updateUserDisplay();
+                loadCatalogue();
+            } else {
+                alert('Please log in from the Patients page');
+                window.location.href = 'index.html';
+            }
+        }
 
         function escapeHtml(value) {
             return String(value)
@@ -936,7 +957,9 @@
             setTimeout(() => alert.innerHTML = '', 5000);
         }
 
-        loadCatalogue();
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeUser();
+        });
     </script>
 </body>
 </html>

@@ -332,6 +332,57 @@ select:focus {
     font-size: 0.9rem;
 }
 
+/* Observation source and anomaly badges */
+.source-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 0.5rem;
+    margin-top: 0.3rem;
+}
+
+.source-manual {
+    background-color: #d5f4e6;
+    color: #27ae60;
+    border: 1px solid #27ae60;
+}
+
+.source-inferred {
+    background-color: #d6eaf8;
+    color: #3498db;
+    border: 1px solid #3498db;
+}
+
+.anomaly-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 0.5rem;
+    margin-top: 0.3rem;
+    background-color: #fadbd8;
+    color: #c0392b;
+    border: 1px solid #e74c3c;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.observation-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+}
+
 .back-link {
     display: inline-block;
     margin-bottom: 1rem;

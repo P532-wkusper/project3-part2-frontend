@@ -40,6 +40,32 @@
         const params = new URLSearchParams(window.location.search);
         const patientId = params.get('id');
 
+        function escapeHtml(value) {
+            if (!value) return '';
+            const div = document.createElement('div');
+            div.textContent = value;
+            return div.innerHTML;
+        }
+
+        /**
+         * Generate HTML for observation source badge and anomaly flag
+         * @param {Object} observation - The observation object
+         * @returns {string} HTML for the metadata display
+         */
+        function getObservationMetadataHtml(observation) {
+            const isAnomaly = observation.rejectionReason && observation.rejectionReason.includes('ANOMALY_DETECTED');
+            const sourceDisplay = observation.source 
+                ? `<span class="source-badge source-${observation.source.toLowerCase()}">${observation.source}</span>` 
+                : '<span class="source-badge source-manual">MANUAL</span>';
+            const anomalyDisplay = isAnomaly ? '<span class="anomaly-badge">⚠ Anomaly Detected</span>' : '';
+            
+            if (!sourceDisplay && !anomalyDisplay) {
+                return '';
+            }
+            
+            return `<div class="observation-metadata">${sourceDisplay}${anomalyDisplay}</div>`;
+        }
+
         function loadPatient() {
             if (!patientId) return;
 
@@ -78,6 +104,7 @@
                                 ${o.unit ? `<p><strong>Unit:</strong> ${o.unit}</p>` : ''}
                                 <p><strong>Recorded:</strong> ${new Date(o.recordingTime).toLocaleString()}</p>
                                 <p><strong>Status:</strong> <span class="status-${o.status.toLowerCase()}">${o.status}</span></p>
+                                ${getObservationMetadataHtml(o)}
                                 ${o.status === 'ACTIVE' ? `<button class="btn btn-danger" onclick="rejectObservation(${o.id})">Reject</button>` : ''}
                             </div>
                         `;
@@ -227,8 +254,38 @@
             fetch(`${API_BASE}/patients/${patientId}/evaluate`, { method: 'POST' })
                 .then(r => r.json())
                 .then(result => {
-                    const msg = Array.isArray(result) ? result.join(', ') : JSON.stringify(result);
-                    alert('Inferences: ' + (msg || 'None'));
+                    const modal = document.getElementById('modal');
+                    
+                    // Check if result has inferences (new format with InferenceDetail objects)
+                    if (result.inferences && Array.isArray(result.inferences)) {
+                        const inferenceHtml = result.inferences.map(inf => `
+                            <div class="list-item">
+                                <h4>${escapeHtml(inf.conceptName)}</h4>
+                                <p><strong>Strategy:</strong> ${inf.strategyType}</p>
+                                <p><strong>Evidence:</strong> ${inf.evidenceObservations.length > 0 ? inf.evidenceObservations.map(e => `<br/>• ${escapeHtml(e)}`).join('') : 'No evidence'}</p>
+                            </div>
+                        `).join('');
+                        
+                        modal.innerHTML = `
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h2>Evaluation Results</h2>
+                                    <button class="close-btn" onclick="closeModal()">×</button>
+                                </div>
+                                <div style="padding: 1rem;">
+                                    ${inferenceHtml || '<p>No inferences</p>'}
+                                </div>
+                                <div style="padding: 1rem; border-top: 1px solid #ddd;">
+                                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Close</button>
+                                </div>
+                            </div>
+                        `;
+                        modal.classList.add('active');
+                    } else {
+                        // Fallback for other response formats
+                        const msg = Array.isArray(result) ? result.join(', ') : JSON.stringify(result);
+                        alert('Inferences: ' + (msg || 'None'));
+                    }
                 })
                 .catch(e => showAlert('Error: ' + e.message, 'error'));
         }

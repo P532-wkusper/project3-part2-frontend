@@ -209,6 +209,7 @@
                         return `
                             <div class="list-item">
                                 <h4>${escapeHtml(rule.name)}</h4>
+                                <p><strong>Strategy:</strong> ${rule.strategyType || 'CONJUNCTIVE'}${rule.threshold ? ' (threshold: ' + rule.threshold + ')' : ''}</p>
                                 <p><strong>Conditions:</strong> ${conditionsText || 'No conditions'}</p>
                                 <p><strong>Then infer:</strong> ${escapeHtml(rule.productConceptName)}</p>
                                 <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
@@ -477,6 +478,29 @@
 
                         <button type="button" class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" onclick="addConditionField()">+ Add Condition</button>
 
+                        <hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">
+                        <h3>Evaluation Strategy</h3>
+                        
+                        <div class="form-group">
+                            <label for="ruleStrategy">Strategy Type</label>
+                            <select id="ruleStrategy" onchange="toggleWeightedFields()" required>
+                                <option value="">Select...</option>
+                                <option value="CONJUNCTIVE">Conjunctive (All conditions must be met)</option>
+                                <option value="WEIGHTED">Weighted Scoring (Conditions scored and summed)</option>
+                            </select>
+                        </div>
+
+                        <div id="weighted-fields" style="display: none;">
+                            <div class="form-group">
+                                <label for="ruleThreshold">Threshold Score</label>
+                                <input type="number" id="ruleThreshold" step="0.1" placeholder="e.g., 1.5" min="0">
+                                <small>Minimum score needed for rule to fire</small>
+                            </div>
+                            <p style="margin-bottom: 1rem; padding: 0.5rem; background: #f0f0f0; border-radius: 4px; font-size: 0.9rem;">
+                                <strong>Weights:</strong> Assign a weight to each condition above (visible when you view the conditions).
+                            </p>
+                        </div>
+
                         <div class="actions" style="margin-top: 1rem;">
                             <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
                             <button type="submit" class="btn btn-primary">Create Rule</button>
@@ -540,6 +564,12 @@
                         </div>
 
                         <div class="form-group">
+                            <label>Weight (for weighted strategy)</label>
+                            <input type="number" step="0.1" class="condition-weight" value="1" min="0" placeholder="e.g., 1.5">
+                            <small>Weight this condition contributes to the score</small>
+                        </div>
+
+                        <div class="form-group">
                             <label>Logical Operator (to next condition)</label>
                             <select class="condition-logical-op">
                                 <option value="AND">AND (all must be true)</option>
@@ -578,18 +608,32 @@
             operatorSelect.value = '';
         }
 
+        function toggleWeightedFields() {
+            const strategy = document.getElementById('ruleStrategy').value;
+            const weightedFields = document.getElementById('weighted-fields');
+            if (strategy === 'WEIGHTED') {
+                weightedFields.style.display = 'block';
+            } else {
+                weightedFields.style.display = 'none';
+            }
+        }
+
         function createRule(event) {
             event.preventDefault();
             
             const name = document.getElementById('ruleName').value;
             const productConceptId = document.getElementById('ruleProductConcept').value;
+            const strategyType = document.getElementById('ruleStrategy').value;
+            const threshold = strategyType === 'WEIGHTED' ? parseFloat(document.getElementById('ruleThreshold').value) : null;
             const conditions = [];
+            const argumentConceptWeights = {};
             
             document.querySelectorAll('.condition-field').forEach(field => {
                 const phenomenonTypeId = field.querySelector('.condition-phenomenon-type').value;
                 const operator = field.querySelector('.condition-operator').value;
                 const comparisonValue = field.querySelector('.condition-value').value;
                 const logicalOperator = field.querySelector('.condition-logical-op').value;
+                const weight = parseFloat(field.querySelector('.condition-weight').value) || 1;
                 
                 if (phenomenonTypeId && operator) {
                     conditions.push({
@@ -598,6 +642,8 @@
                         comparisonValue: operator.match(/[><]|=/) ? (comparisonValue ? parseFloat(comparisonValue) : null) : null,
                         logicalOperator: logicalOperator
                     });
+                    
+                    argumentConceptWeights[phenomenonTypeId] = weight;
                 }
             });
             
@@ -606,11 +652,27 @@
                 return;
             }
             
+            if (!strategyType) {
+                showAlert('Select a strategy type', 'error');
+                return;
+            }
+            
+            if (strategyType === 'WEIGHTED' && (!threshold || isNaN(threshold))) {
+                showAlert('Enter a valid threshold for weighted strategy', 'error');
+                return;
+            }
+            
             const payload = {
                 name: name,
                 productConceptId: productConceptId,
-                conditions: conditions
+                conditions: conditions,
+                strategyType: strategyType
             };
+            
+            if (strategyType === 'WEIGHTED') {
+                payload.threshold = threshold;
+                payload.argumentConceptWeights = argumentConceptWeights;
+            }
             
             fetch(`${API_BASE}/rules`, {
                 method: 'POST',
@@ -659,6 +721,29 @@
                         <div id="conditions-container"></div>
 
                         <button type="button" class="btn btn-secondary" style="margin-top: 1rem; width: 100%;" onclick="addConditionField()">+ Add Condition</button>
+
+                        <hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">
+                        <h3>Evaluation Strategy</h3>
+                        
+                        <div class="form-group">
+                            <label for="ruleStrategy">Strategy Type</label>
+                            <select id="ruleStrategy" onchange="toggleWeightedFields()" required>
+                                <option value="">Select...</option>
+                                <option value="CONJUNCTIVE">Conjunctive (All conditions must be met)</option>
+                                <option value="WEIGHTED">Weighted Scoring (Conditions scored and summed)</option>
+                            </select>
+                        </div>
+
+                        <div id="weighted-fields" style="display: none;">
+                            <div class="form-group">
+                                <label for="ruleThreshold">Threshold Score</label>
+                                <input type="number" id="ruleThreshold" step="0.1" placeholder="e.g., 1.5" min="0">
+                                <small>Minimum score needed for rule to fire</small>
+                            </div>
+                            <p style="margin-bottom: 1rem; padding: 0.5rem; background: #f0f0f0; border-radius: 4px; font-size: 0.9rem;">
+                                <strong>Weights:</strong> Assign a weight to each condition above (visible when you view the conditions).
+                            </p>
+                        </div>
 
                         <div class="actions" style="margin-top: 1rem;">
                             <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -715,6 +800,12 @@
                         </div>
 
                         <div class="form-group">
+                            <label>Weight (for weighted strategy)</label>
+                            <input type="number" step="0.1" class="condition-weight" value="1" min="0" placeholder="e.g., 1.5">
+                            <small>Weight this condition contributes to the score</small>
+                        </div>
+
+                        <div class="form-group">
                             <label>Logical Operator (to next condition)</label>
                             <select class="condition-logical-op">
                                 <option value="AND" ${cond.logicalOperator === 'AND' ? 'selected' : ''}>AND (all must be true)</option>
@@ -730,6 +821,26 @@
             document.querySelectorAll('.condition-phenomenon-type').forEach(select => {
                 updateConditionOperators(select);
             });
+            
+            // Set strategy type and threshold from existing rule
+            if (rule.strategyType) {
+                document.getElementById('ruleStrategy').value = rule.strategyType;
+                toggleWeightedFields();
+            }
+            if (rule.threshold !== null && rule.threshold !== undefined) {
+                document.getElementById('ruleThreshold').value = rule.threshold;
+            }
+            
+            // Set weights from argumentConceptWeights
+            if (rule.argumentConceptWeights) {
+                document.querySelectorAll('.condition-weight').forEach(input => {
+                    const field = input.closest('.condition-field');
+                    const phenomenonTypeId = field.querySelector('.condition-phenomenon-type').value;
+                    if (rule.argumentConceptWeights[phenomenonTypeId]) {
+                        input.value = rule.argumentConceptWeights[phenomenonTypeId];
+                    }
+                });
+            }
         }
 
         function updateRule(event, ruleId) {
@@ -737,13 +848,17 @@
             
             const name = document.getElementById('ruleName').value;
             const productConceptId = document.getElementById('ruleProductConcept').value;
+            const strategyType = document.getElementById('ruleStrategy').value;
+            const threshold = strategyType === 'WEIGHTED' ? parseFloat(document.getElementById('ruleThreshold').value) : null;
             const conditions = [];
+            const argumentConceptWeights = {};
             
             document.querySelectorAll('.condition-field').forEach(field => {
                 const phenomenonTypeId = field.querySelector('.condition-phenomenon-type').value;
                 const operator = field.querySelector('.condition-operator').value;
                 const comparisonValue = field.querySelector('.condition-value').value;
                 const logicalOperator = field.querySelector('.condition-logical-op').value;
+                const weight = parseFloat(field.querySelector('.condition-weight').value) || 1;
                 
                 if (phenomenonTypeId && operator) {
                     conditions.push({
@@ -752,6 +867,8 @@
                         comparisonValue: operator.match(/[><]|=/) ? (comparisonValue ? parseFloat(comparisonValue) : null) : null,
                         logicalOperator: logicalOperator
                     });
+                    
+                    argumentConceptWeights[phenomenonTypeId] = weight;
                 }
             });
             
@@ -760,11 +877,27 @@
                 return;
             }
             
+            if (!strategyType) {
+                showAlert('Select a strategy type', 'error');
+                return;
+            }
+            
+            if (strategyType === 'WEIGHTED' && (!threshold || isNaN(threshold))) {
+                showAlert('Enter a valid threshold for weighted strategy', 'error');
+                return;
+            }
+            
             const payload = {
                 name: name,
                 productConceptId: productConceptId,
-                conditions: conditions
+                conditions: conditions,
+                strategyType: strategyType
             };
+            
+            if (strategyType === 'WEIGHTED') {
+                payload.threshold = threshold;
+                payload.argumentConceptWeights = argumentConceptWeights;
+            }
             
             fetch(`${API_BASE}/rules/${ruleId}`, {
                 method: 'PUT',

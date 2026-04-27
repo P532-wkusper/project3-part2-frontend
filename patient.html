@@ -283,7 +283,7 @@
             const reason = prompt('Enter rejection reason:');
             if (!reason) return;
 
-            const data = { observationId: obsId, reason: reason };
+            const data = { observationId: obsId, rejectionReason: reason, username: currentUser?.username || 'unknown' };
             fetch(`${API_BASE}/observations/${obsId}/reject`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

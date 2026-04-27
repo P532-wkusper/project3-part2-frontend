@@ -941,7 +941,8 @@
                 amount: parseFloat(document.getElementById('amount').value),
                 unit: document.getElementById('unit').value,
                 protocolId: document.getElementById('protocolId').value ? parseInt(document.getElementById('protocolId').value) : null,
-                applicabilityTime: new Date().toISOString()
+                applicabilityTime: new Date().toISOString(),
+                username: currentUser?.username || 'unknown'
             };
             
             try {
@@ -1059,7 +1060,8 @@
                 phenomenonId: parseInt(document.getElementById('phenomenonId').value),
                 presence: document.getElementById('presence').value,
                 protocolId: document.getElementById('protocolId2').value ? parseInt(document.getElementById('protocolId2').value) : null,
-                applicabilityTime: new Date().toISOString()
+                applicabilityTime: new Date().toISOString(),
+                username: currentUser?.username || 'unknown'
             };
             
             try {
@@ -1156,7 +1158,7 @@
             };
             
             try {
-                const response = await fetch(`${API_BASE}/phenomenon-types`, {
+                const response = await fetchWithUser(`${API_BASE}/phenomenon-types`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -1217,7 +1219,7 @@
             };
             
             try {
-                const response = await fetch(`${API_BASE}/protocols`, {
+                const response = await fetchWithUser(`${API_BASE}/protocols`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)

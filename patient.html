@@ -144,8 +144,13 @@
                             typeDisplay = o.phenomenonType.name;
                         }
                         
+                        const cardClasses = [
+                            o.status === 'REJECTED' ? 'rejected' : '',
+                            o.source === 'INFERRED' ? 'inferred-observation' : ''
+                        ].filter(c => c).join(' ');
+                        
                         return `
-                            <div class="observation-card ${o.status === 'REJECTED' ? 'rejected' : ''}">
+                            <div class="observation-card ${cardClasses}">
                                 <p><strong>Type:</strong> ${typeDisplay}</p>
                                 <p><strong>Value:</strong> ${o.amount || o.presence || 'N/A'}</p>
                                 ${o.unit ? `<p><strong>Unit:</strong> ${o.unit}</p>` : ''}

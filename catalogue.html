@@ -154,15 +154,19 @@
                 return;
             }
 
-            container.innerHTML = phenomena.map(p => `
+            container.innerHTML = phenomena.map(p => {
+                const parentInfo = p.parentConcept ? `<p>Parent: ${escapeHtml(p.parentConcept.name)}</p>` : '';
+                return `
                 <div class="list-item" style="display: flex !important; justify-content: space-between; align-items: center; overflow: visible !important;">
                     <div>
                         <strong>${escapeHtml(p.name)}</strong>
+                        ${parentInfo}
                         <p>ID: ${p.id}</p>
                     </div>
                     <button onclick="deletePhenomenonAndRefresh(${p.id})" style="background: #e74c3c; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; flex-shrink: 0;">Delete</button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function loadPhenomenaForSelectedType() {
@@ -419,18 +423,37 @@
             `;
             modal.classList.add('active');
             
-            // Load existing phenomena
-            fetch(`${API_BASE}/phenomenon-types/${phenomenonTypeId}/phenomena`)
-                .then(r => r.json())
-                .then(phenomena => {
-                    const phenomenaList = phenomena.map(p => `
-                        <div class="list-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span>${p.name}</span>
-                                <button class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="deletePhenomenon(${p.id})">Delete</button>
+            // Load existing phenomena and all phenomena for parent dropdown
+            Promise.all([
+                fetch(`${API_BASE}/phenomenon-types/${phenomenonTypeId}/phenomena`).then(r => r.json()),
+                fetch(`${API_BASE}/phenomenon-types`).then(r => r.json())
+            ])
+                .then(([typePhenomena, phenomenonTypes]) => {
+                    // Get all phenomena from all qualitative types for parent dropdown
+                    const allPhenomena = [];
+                    for (const pt of phenomenonTypes) {
+                        if (pt.kind === 'QUALITATIVE' && pt.phenomena) {
+                            allPhenomena.push(...pt.phenomena);
+                        }
+                    }
+                    
+                    // Create parent dropdown options (exclude the current phenomenon from the list when displayed)
+                    const parentOptions = allPhenomena.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+                    
+                    const phenomenaList = typePhenomena.map(p => {
+                        const parentInfo = p.parentConcept ? `<br><small style="color: #666;">Parent: ${escapeHtml(p.parentConcept.name)}</small>` : '';
+                        return `
+                            <div class="list-item">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <span>${escapeHtml(p.name)}</span>
+                                        ${parentInfo}
+                                    </div>
+                                    <button class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;" onclick="deletePhenomenon(${p.id})">Delete</button>
+                                </div>
                             </div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
                     
                     const content = document.querySelector('.modal-content');
                     content.innerHTML = `
@@ -442,6 +465,14 @@
                             <div class="form-group">
                                 <label>Add New Phenomenon</label>
                                 <input type="text" id="phenomenonName" placeholder="e.g., Blood Group A, Poor, Good" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="parentConceptSelect">Parent Concept (optional)</label>
+                                <select id="parentConceptSelect">
+                                    <option value="">None</option>
+                                    ${parentOptions}
+                                </select>
+                                <small style="color: #666;">Create a hierarchy by selecting a parent concept</small>
                             </div>
                             <div class="actions">
                                 <button type="submit" class="btn btn-primary">Add</button>
@@ -458,15 +489,22 @@
         function createPhenomenon(event, phenomenonTypeId) {
             event.preventDefault();
             const name = document.getElementById('phenomenonName').value;
+            const parentConceptId = document.getElementById('parentConceptSelect').value;
+            
+            const body = { name: name };
+            if (parentConceptId) {
+                body.parentConceptId = parseInt(parentConceptId);
+            }
             
             fetch(`${API_BASE}/phenomenon-types/${phenomenonTypeId}/phenomena`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name })
+                body: JSON.stringify(body)
             })
                 .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed')))
                 .then(() => {
                     document.getElementById('phenomenonName').value = '';
+                    document.getElementById('parentConceptSelect').value = '';
                     showAlert('Phenomenon added', 'success');
                     // Reload the modal
                     const phenomenonTypeName = document.querySelector('.modal-header h2').textContent.replace('Manage Phenomena: ', '');

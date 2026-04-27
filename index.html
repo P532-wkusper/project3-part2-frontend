@@ -1199,7 +1199,7 @@
             }
             
             try {
-                const response = await fetchWithUser(`${API_BASE}/phenomenon-types`, {
+                const response = await fetch(`${API_BASE}/phenomenon-types`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -1260,7 +1260,7 @@
             };
             
             try {
-                const response = await fetchWithUser(`${API_BASE}/protocols`, {
+                const response = await fetch(`${API_BASE}/protocols`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)

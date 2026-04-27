@@ -291,6 +291,16 @@
                                 <option value="QUALITATIVE">Qualitative</option>
                             </select>
                         </div>
+                        <div id="anomalyBoundsGroup" style="display: none;">
+                            <div class="form-group">
+                                <label>Normal Min (normMin) - optional</label>
+                                <input type="number" id="ptNormMin" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Normal Max (normMax) - optional</label>
+                                <input type="number" id="ptNormMax" step="0.01">
+                            </div>
+                        </div>
                         <div class="actions">
                             <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
                             <button type="submit" class="btn btn-primary">Create</button>
@@ -298,15 +308,31 @@
                     </form>
                 </div>
             `;
+            
+            // Show anomaly bounds only for quantitative types
+            document.getElementById('ptKind').addEventListener('change', (e) => {
+                const boundsGroup = document.getElementById('anomalyBoundsGroup');
+                boundsGroup.style.display = e.target.value === 'QUANTITATIVE' ? 'block' : 'none';
+            });
+            
             modal.classList.add('active');
         }
 
         function createPhenomenonType(e) {
             e.preventDefault();
+            const kind = document.getElementById('ptKind').value;
             const data = {
                 name: document.getElementById('ptName').value,
-                kind: document.getElementById('ptKind').value
+                kind: kind
             };
+
+            // Add normMin and normMax for quantitative types
+            if (kind === 'QUANTITATIVE') {
+                const normMin = document.getElementById('ptNormMin').value;
+                const normMax = document.getElementById('ptNormMax').value;
+                if (normMin) data.normMin = parseFloat(normMin);
+                if (normMax) data.normMax = parseFloat(normMax);
+            }
 
             fetch(`${API_BASE}/phenomenon-types`, {
                 method: 'POST',

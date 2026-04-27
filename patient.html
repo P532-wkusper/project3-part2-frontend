@@ -16,7 +16,6 @@
             <div class="user-menu-container">
                 <button class="user-menu-toggle" id="user-menu-toggle" onclick="toggleUserMenu()">Loading...</button>
                 <div class="user-menu-dropdown" id="user-menu-dropdown">
-                    <a href="logs.html">View Logs</a>
                     <a class="logout" onclick="logoutUser()">Logout</a>
                 </div>
             </div>
@@ -72,6 +71,7 @@
         function logoutUser() {
             localStorage.removeItem('currentUser');
             currentUser = null;
+            // Redirect to index which will show login screen
             window.location.href = 'index.html';
         }
 

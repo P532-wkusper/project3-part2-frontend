@@ -593,8 +593,10 @@
         function logoutUser() {
             localStorage.removeItem('currentUser');
             currentUser = null;
-            // Force page reload to clear all content
-            location.reload();
+            window.location.href = 'logs.html';
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 100);
         }
 
 

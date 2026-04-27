@@ -393,6 +393,12 @@
                         <label for="newPhenomenonNameCatalogue">New Concrete Phenomenon Name</label>
                         <input type="text" id="newPhenomenonNameCatalogue" placeholder="e.g., BloodTypeA" required>
                     </div>
+                    <div class="form-group">
+                        <label for="newPhenomenonParentCatalogue">Parent Concept (optional - creates hierarchy)</label>
+                        <select id="newPhenomenonParentCatalogue">
+                            <option value="">None</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn btn-primary">Create Phenomenon</button>
                 </form>
                 <div id="selected-phenomena-list-catalogue"></div>
@@ -647,31 +653,52 @@
         function loadPhenomenaForSelectedTypeCatalogue() {
             const typeId = document.getElementById('phenomenonTypeSelectCatalogue').value;
             const container = document.getElementById('selected-phenomena-list-catalogue');
+            const parentSelect = document.getElementById('newPhenomenonParentCatalogue');
 
             if (!typeId) {
                 container.innerHTML = '<p>Select a qualitative type to view its concrete phenomena.</p>';
+                parentSelect.innerHTML = '<option value="">None</option>';
                 return;
             }
 
             container.innerHTML = '<p>Loading...</p>';
+            parentSelect.innerHTML = '<option value="">Loading...</option>';
 
             fetch(`${API_BASE}/phenomenon-types/${typeId}/phenomena`)
-                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to load phenomena')))
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error(`HTTP ${r.status}: Failed to load phenomena`);
+                    }
+                    return r.json();
+                })
                 .then(phenomena => {
                     if (!phenomena || phenomena.length === 0) {
                         container.innerHTML = '<p>No concrete phenomena for this type yet.</p>';
+                        parentSelect.innerHTML = '<option value="">None (root concept)</option>';
                         return;
                     }
 
-                    container.innerHTML = phenomena.map(p => `
+                    container.innerHTML = phenomena.map(p => {
+                        const parentInfo = p.parentConcept ? `<p style="font-size: 0.85rem; color: #666;">Parent: ${escapeHtml(p.parentConcept.name)}</p>` : '';
+                        return `
                         <div class="list-item">
                             <p><strong>${escapeHtml(p.name)}</strong></p>
+                            ${parentInfo}
                             <p>ID: ${p.id}</p>
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
+
+                    // Populate parent dropdown
+                    const options = ['<option value="">None (root concept)</option>'];
+                    phenomena.forEach(p => {
+                        options.push(`<option value="${p.id}">${escapeHtml(p.name)}</option>`);
+                    });
+                    parentSelect.innerHTML = options.join('');
                 })
                 .catch(error => {
                     container.innerHTML = '<p>Could not load phenomena.</p>';
+                    parentSelect.innerHTML = '<option value="">None</option>';
                     alert('Error loading phenomena: ' + error.message);
                 });
         }
@@ -681,21 +708,29 @@
 
             const typeId = document.getElementById('phenomenonTypeSelectCatalogue').value;
             const nameInput = document.getElementById('newPhenomenonNameCatalogue');
+            const parentSelect = document.getElementById('newPhenomenonParentCatalogue');
             const name = nameInput.value.trim();
+            const parentConceptId = parentSelect.value;
 
             if (!typeId) {
                 alert('Select a qualitative phenomenon type first.');
                 return;
             }
 
+            const body = { name };
+            if (parentConceptId) {
+                body.parentConceptId = parseInt(parentConceptId);
+            }
+
             fetch(`${API_BASE}/phenomenon-types/${typeId}/phenomena`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify(body)
             })
                 .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to create phenomenon')))
                 .then(() => {
                     nameInput.value = '';
+                    parentSelect.value = '';
                     loadPhenomenaForSelectedTypeCatalogue();
                     alert('Phenomenon created');
                 })

@@ -179,32 +179,43 @@
             const select = document.getElementById('phenomenonTypeSelect');
             const selectedTypeId = select.value;
             const container = document.getElementById('selected-phenomena-list');
+            const parentSelect = document.getElementById('newPhenomenonParent');
 
             if (!selectedTypeId) {
                 container.innerHTML = '<p>Select a qualitative type to view its concrete phenomena.</p>';
                 // Reset parent dropdown
-                const parentSelect = document.getElementById('newPhenomenonParent');
                 parentSelect.innerHTML = '<option value="">None</option>';
                 return;
             }
 
             container.innerHTML = '<p>Loading...</p>';
+            parentSelect.innerHTML = '<option value="">Loading...</option>';
 
             fetch(`${API_BASE}/phenomenon-types/${selectedTypeId}/phenomena`)
-                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to load phenomena')))
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error(`HTTP ${r.status}: Failed to load phenomena`);
+                    }
+                    return r.json();
+                })
                 .then(phenomena => {
+                    console.log('Phenomena loaded:', phenomena);
                     renderSelectedPhenomena(phenomena);
                     
                     // Populate parent dropdown with phenomena from this type
-                    const parentSelect = document.getElementById('newPhenomenonParent');
-                    const options = ['<option value="">None</option>'];
-                    phenomena.forEach(p => {
-                        options.push(`<option value="${p.id}">${escapeHtml(p.name)}</option>`);
-                    });
+                    const options = ['<option value="">None (root concept)</option>'];
+                    if (phenomena && phenomena.length > 0) {
+                        phenomena.forEach(p => {
+                            options.push(`<option value="${p.id}">${escapeHtml(p.name)}</option>`);
+                        });
+                    }
                     parentSelect.innerHTML = options.join('');
+                    console.log('Parent dropdown populated with', phenomena ? phenomena.length : 0, 'items');
                 })
                 .catch(e => {
                     container.innerHTML = '<p>Could not load phenomena.</p>';
+                    parentSelect.innerHTML = '<option value="">None</option>';
+                    console.error('Error loading phenomena:', e);
                     showAlert('Error loading phenomena: ' + e.message, 'error');
                 });
         }

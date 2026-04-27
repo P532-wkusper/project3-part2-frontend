@@ -278,6 +278,73 @@
         .actions button {
             flex: 1;
         }
+
+        .user-menu-container {
+            position: relative;
+            margin-left: auto;
+        }
+
+        .user-menu-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            transition: opacity 0.3s;
+        }
+
+        .user-menu-toggle:hover {
+            opacity: 0.8;
+        }
+
+        .user-menu-toggle::after {
+            content: '▼';
+            font-size: 0.7rem;
+        }
+
+        .user-menu-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 150px;
+            margin-top: 0.5rem;
+            z-index: 1001;
+        }
+
+        .user-menu-dropdown.active {
+            display: block;
+        }
+
+        .user-menu-dropdown a {
+            display: block;
+            padding: 0.8rem 1.2rem;
+            color: #333;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .user-menu-dropdown a:hover {
+            background-color: #f5f5f5;
+        }
+
+        .user-menu-dropdown a.logout {
+            color: #e74c3c;
+            border-top: 1px solid #eee;
+        }
+
+        .user-menu-dropdown a.logout:hover {
+            background-color: #fadbd8;
+        }
     </style>
 </head>
 <body>
@@ -287,7 +354,15 @@
             <li><a onclick="switchSection('patients')">Patients</a></li>
             <li><a onclick="switchSection('catalogue')">Catalogue</a></li>
             <li><a onclick="switchSection('logs')">Logs</a></li>
-            <li><span id="user-info" style="margin-left: auto; font-size: 0.9rem;">Loading...</span></li>
+            <li>
+                <div class="user-menu-container">
+                    <button class="user-menu-toggle" id="user-menu-toggle" onclick="toggleUserMenu()">Loading...</button>
+                    <div class="user-menu-dropdown" id="user-menu-dropdown">
+                        <a onclick="switchSection('logs')">View Logs</a>
+                        <a class="logout" onclick="logoutUser()">Logout</a>
+                    </div>
+                </div>
+            </li>
         </ul>
     </nav>
 
@@ -362,10 +437,24 @@
         }
 
         function updateUserDisplay() {
-            const userInfo = document.getElementById('user-info');
+            const userMenuToggle = document.getElementById('user-menu-toggle');
             if (currentUser) {
-                userInfo.textContent = `${currentUser.username} (${currentUser.role})`;
+                userMenuToggle.textContent = `👤 ${currentUser.username}`;
             }
+        }
+
+        function toggleUserMenu() {
+            const dropdown = document.getElementById('user-menu-dropdown');
+            dropdown.classList.toggle('active');
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function closeMenu(event) {
+                const container = document.querySelector('.user-menu-container');
+                if (!container.contains(event.target)) {
+                    dropdown.classList.remove('active');
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
         }
 
         function showUserAuthModal() {
@@ -505,10 +594,10 @@
         function logoutUser() {
             localStorage.removeItem('currentUser');
             currentUser = null;
+            document.getElementById('user-menu-dropdown').classList.remove('active');
             showUserAuthModal();
         }
 
-        // ===== EXISTING CODE =====
 
         function escapeHtml(value) {
             return String(value)
@@ -519,11 +608,6 @@
                 .replace(/'/g, '&#39;');
         }
 
-        /**
-         * Generate HTML for observation source badge and anomaly flag
-         * @param {Object} observation - The observation object
-         * @returns {string} HTML for the metadata display
-         */
         function getObservationMetadataHtml(observation) {
             const isAnomaly = observation.rejectionReason && observation.rejectionReason.includes('ANOMALY_DETECTED');
             const sourceDisplay = observation.source 

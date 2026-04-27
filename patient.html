@@ -13,7 +13,13 @@
             <a href="index.html">Patients</a>
             <a href="catalogue.html">Catalogue</a>
             <a href="logs.html">Logs</a>
-            <span id="user-info" style="margin-left: auto; font-size: 0.9rem;">Loading...</span>
+            <div class="user-menu-container">
+                <button class="user-menu-toggle" id="user-menu-toggle" onclick="toggleUserMenu()">Loading...</button>
+                <div class="user-menu-dropdown" id="user-menu-dropdown">
+                    <a href="logs.html">View Logs</a>
+                    <a class="logout" onclick="logoutUser()">Logout</a>
+                </div>
+            </div>
         </nav>
     </div>
 
@@ -43,10 +49,30 @@
         let currentUser = null;
 
         function updateUserDisplay() {
-            const userInfo = document.getElementById('user-info');
+            const userMenuToggle = document.getElementById('user-menu-toggle');
             if (currentUser) {
-                userInfo.textContent = `${currentUser.username} (${currentUser.role})`;
+                userMenuToggle.textContent = `👤 ${currentUser.username}`;
             }
+        }
+
+        function toggleUserMenu() {
+            const dropdown = document.getElementById('user-menu-dropdown');
+            dropdown.classList.toggle('active');
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function closeMenu(event) {
+                const container = document.querySelector('.user-menu-container');
+                if (!container.contains(event.target)) {
+                    dropdown.classList.remove('active');
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
+        }
+
+        function logoutUser() {
+            localStorage.removeItem('currentUser');
+            currentUser = null;
+            window.location.href = 'index.html';
         }
 
         function initializeUser() {

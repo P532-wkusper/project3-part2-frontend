@@ -593,16 +593,8 @@
         function logoutUser() {
             localStorage.removeItem('currentUser');
             currentUser = null;
-            document.getElementById('user-menu-dropdown').classList.remove('active');
-            // Close modal if open and reset to auth modal
-            const modal = document.getElementById('modal');
-            modal.classList.remove('active');
-            modal.innerHTML = '';
-            // Reset sections
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.getElementById('patients').classList.add('active');
-            // Show auth modal
-            showUserAuthModal();
+            // Force page reload to clear all content
+            location.reload();
         }
 
 

@@ -1100,7 +1100,7 @@
                         
                         return `
                             <div class="list-item" style="background: #f9f9f9; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border-left: 4px solid #27ae60;">
-                                <h4 style="margin: 0 0 0.5rem 0; color: #27ae60;">✓ ${escapeHtml(inf.conceptName)}</h4>
+                                <h4 style="margin: 0 0 0.5rem 0; color: #27ae60;"> ${escapeHtml(inf.conceptName)}</h4>
                                 <p style="margin: 0.3rem 0; font-size: 0.9rem;"><strong>Strategy:</strong> ${strategyBadge}</p>
                                 <div style="margin-top: 0.8rem;">
                                     <strong style="font-size: 0.9rem; display: block; margin-bottom: 0.4rem;">Matching Observations:</strong>
@@ -1907,10 +1907,10 @@
                 conditionBtn.style.display = 'block';
                 
                 if (rule.strategyType === 'CONJUNCTIVE') {
-                    strategyDesc.textContent = '✓ Conjunctive Strategy: All conditions must be met. Use AND to combine all, or OR to match any.';
+                    strategyDesc.textContent = 'Conjunctive Strategy: All conditions must be met. Use AND to combine all, or OR to match any.';
                     weightedThreshold.style.display = 'none';
                 } else {
-                    strategyDesc.textContent = '✓ Weighted Strategy: Each condition contributes a score. Rule fires if total score meets threshold.';
+                    strategyDesc.textContent = 'Weighted Strategy: Each condition contributes a score. Rule fires if total score meets threshold.';
                     weightedThreshold.style.display = 'block';
                     if (rule.threshold) {
                         document.getElementById('ruleThreshold').value = rule.threshold;

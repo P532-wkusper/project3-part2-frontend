@@ -1089,13 +1089,28 @@
                 
                 if (result.inferences && Array.isArray(result.inferences)) {
                     const modal = document.getElementById('modal');
-                    const inferenceHtml = result.inferences.map(inf => `
-                        <div class="list-item">
-                            <h4>${escapeHtml(inf.conceptName)}</h4>
-                            <p><strong>Strategy:</strong> ${inf.strategyType}</p>
-                            <p><strong>Evidence:</strong> ${inf.evidenceObservations.length > 0 ? inf.evidenceObservations.map(e => `<br/>• ${escapeHtml(e)}`).join('') : 'No evidence'}</p>
-                        </div>
-                    `).join('');
+                    const inferenceHtml = result.inferences.map(inf => {
+                        const strategyBadge = inf.strategyType === 'CONJUNCTIVE' ? 
+                            '<span style="background: #3498db; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem;">AND/OR Logic</span>' :
+                            '<span style="background: #e74c3c; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem;">Weighted Scoring</span>';
+                        
+                        const evidenceList = inf.evidenceObservations && inf.evidenceObservations.length > 0 ?
+                            inf.evidenceObservations.map(e => `<li style="padding: 0.4rem 0; border-bottom: 1px solid #eee;">${escapeHtml(e)}</li>`).join('') :
+                            '<li style="padding: 0.4rem 0; color: #999;">No matching observations</li>';
+                        
+                        return `
+                            <div class="list-item" style="background: #f9f9f9; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border-left: 4px solid #27ae60;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: #27ae60;">✓ ${escapeHtml(inf.conceptName)}</h4>
+                                <p style="margin: 0.3rem 0; font-size: 0.9rem;"><strong>Strategy:</strong> ${strategyBadge}</p>
+                                <div style="margin-top: 0.8rem;">
+                                    <strong style="font-size: 0.9rem; display: block; margin-bottom: 0.4rem;">Matching Observations:</strong>
+                                    <ul style="margin: 0; padding-left: 1.5rem; list-style: none;">
+                                        ${evidenceList}
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                     
                     modal.innerHTML = `
                         <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
@@ -1104,8 +1119,8 @@
                                 <button class="close-btn" onclick="closeModal()">×</button>
                             </div>
                             <div style="padding: 1rem;">
-                                ${result.inferences.length > 0 ? inferenceHtml : '<p>No inferences generated</p>'}
-                                <button class="btn btn-primary" style="margin-top: 1rem;" onclick="closeModal()">Close</button>
+                                ${result.inferences.length > 0 ? inferenceHtml : '<p style="text-align: center; color: #999; padding: 2rem;">No inferences generated for this patient</p>'}
+                                <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="closeModal()">Close</button>
                             </div>
                         </div>
                     `;

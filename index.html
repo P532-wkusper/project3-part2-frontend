@@ -1394,12 +1394,17 @@
             try {
                 const response = await fetch(`${API_BASE}/command-log/${entryId}/undo`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser?.username || 'unknown' })
                 });
 
                 if (response.ok) {
                     const result = await response.json();
-                    showAlert('Command undone: ' + result.result, 'success');
+                    if (result.success) {
+                        showAlert('Command undone: ' + result.result, 'success');
+                    } else {
+                        showAlert('Failed to undo: ' + result.result, 'error');
+                    }
                     loadLogs();
                 } else {
                     const error = await response.json();

@@ -394,7 +394,7 @@
                         <input type="text" id="newPhenomenonNameCatalogue" placeholder="e.g., BloodTypeA" required>
                     </div>
                     <div class="form-group">
-                        <label for="newPhenomenonParentCatalogue">Parent Concept (optional - creates hierarchy)</label>
+                        <label for="newPhenomenonParentCatalogue">Parent Concept (optional)</label>
                         <select id="newPhenomenonParentCatalogue">
                             <option value="">None</option>
                         </select>
@@ -452,7 +452,6 @@
             const dropdown = document.getElementById('user-menu-dropdown');
             dropdown.classList.toggle('active');
             
-            // Close dropdown when clicking outside
             document.addEventListener('click', function closeMenu(event) {
                 const container = document.querySelector('.user-menu-container');
                 if (!container.contains(event.target)) {
@@ -674,7 +673,7 @@
                 .then(phenomena => {
                     if (!phenomena || phenomena.length === 0) {
                         container.innerHTML = '<p>No concrete phenomena for this type yet.</p>';
-                        parentSelect.innerHTML = '<option value="">None (root concept)</option>';
+                        parentSelect.innerHTML = '<option value="">None</option>';
                         return;
                     }
 
@@ -689,8 +688,7 @@
                     `;
                     }).join('');
 
-                    // Populate parent dropdown
-                    const options = ['<option value="">None (root concept)</option>'];
+                    const options = ['<option value="">None</option>'];
                     phenomena.forEach(p => {
                         options.push(`<option value="${p.id}">${escapeHtml(p.name)}</option>`);
                     });
@@ -765,7 +763,6 @@
                     </div>
                 `).join('');
             } catch (error) {
-                console.error('Error loading patients:', error);
             }
         }
 
@@ -835,7 +832,6 @@
                 
                 showPatientDetail(patient, observations);
             } catch (error) {
-                console.error('Error loading patient:', error);
             }
         }
 
@@ -929,7 +925,6 @@
                     });
                 });
             
-            // Populate protocols dropdown
             fetch(`${API_BASE}/protocols`)
                 .then(r => r.json())
                 .then(protocols => {
@@ -1040,7 +1035,6 @@
                 </div>
             `;
             
-            // Populate phenomenon types dropdown (only qualitative)
             fetch(`${API_BASE}/phenomenon-types`)
                 .then(r => r.json())
                 .then(types => {
@@ -1053,7 +1047,6 @@
                     });
                 });
             
-            // Populate protocols dropdown
             fetch(`${API_BASE}/protocols`)
                 .then(r => r.json())
                 .then(protocols => {
@@ -1208,7 +1201,6 @@
                 </div>
             `;
             
-            // Show anomaly bounds only for quantitative types
             document.getElementById('ptKind').addEventListener('change', (e) => {
                 const boundsGroup = document.getElementById('anomalyBoundsGroup');
                 boundsGroup.style.display = e.target.value === 'QUANTITATIVE' ? 'block' : 'none';
@@ -1361,7 +1353,6 @@
                     `;
                 }).join('');
             } catch (error) {
-                console.error('Error loading catalogue:', error);
             }
         }
 
@@ -1458,7 +1449,6 @@
                     </div>
                 `).join('');
             } catch (error) {
-                console.error('Error loading logs:', error);
             }
         }
 
@@ -1607,7 +1597,6 @@
                 weightedThreshold.style.display = 'block';
             }
             
-            // Add first condition
             addConditionField();
         }
 
@@ -1711,7 +1700,6 @@
             const specificPhenomenonGroup = field.querySelector('.condition-specific-phenomenon-group');
             const specificPhenomenonSelect = field.querySelector('.condition-specific-phenomenon');
             
-            // Hide all operator options first
             Array.from(operatorSelect.options).forEach(opt => opt.style.display = 'none');
             
             if (kind === 'QUANTITATIVE') {
@@ -1726,7 +1714,6 @@
                 valueGroup.style.display = 'none';
                 specificPhenomenonGroup.style.display = 'block';
                 
-                // Load phenomena for this qualitative type
                 if (typeId) {
                     fetch(`${API_BASE}/phenomenon-types/${typeId}/phenomena`)
                         .then(r => r.json())

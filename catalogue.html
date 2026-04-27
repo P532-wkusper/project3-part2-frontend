@@ -62,7 +62,7 @@
                     <input type="text" id="newPhenomenonName" placeholder="e.g., BloodTypeA" required>
                 </div>
                 <div class="form-group">
-                    <label for="newPhenomenonParent">Parent Concept (optional - creates hierarchy)</label>
+                    <label for="newPhenomenonParent">Parent Concept (optional)</label>
                     <select id="newPhenomenonParent">
                         <option value="">None</option>
                     </select>
@@ -92,7 +92,6 @@
             const dropdown = document.getElementById('user-menu-dropdown');
             dropdown.classList.toggle('active');
             
-            // Close dropdown when clicking outside
             document.addEventListener('click', function closeMenu(event) {
                 const container = document.querySelector('.user-menu-container');
                 if (!container.contains(event.target)) {
@@ -183,7 +182,6 @@
 
             if (!selectedTypeId) {
                 container.innerHTML = '<p>Select a qualitative type to view its concrete phenomena.</p>';
-                // Reset parent dropdown
                 parentSelect.innerHTML = '<option value="">None</option>';
                 return;
             }
@@ -199,23 +197,19 @@
                     return r.json();
                 })
                 .then(phenomena => {
-                    console.log('Phenomena loaded:', phenomena);
                     renderSelectedPhenomena(phenomena);
                     
-                    // Populate parent dropdown with phenomena from this type
-                    const options = ['<option value="">None (root concept)</option>'];
+                    const options = ['<option value="">None</option>'];
                     if (phenomena && phenomena.length > 0) {
                         phenomena.forEach(p => {
                             options.push(`<option value="${p.id}">${escapeHtml(p.name)}</option>`);
                         });
                     }
                     parentSelect.innerHTML = options.join('');
-                    console.log('Parent dropdown populated with', phenomena ? phenomena.length : 0, 'items');
                 })
                 .catch(e => {
                     container.innerHTML = '<p>Could not load phenomena.</p>';
                     parentSelect.innerHTML = '<option value="">None</option>';
-                    console.error('Error loading phenomena:', e);
                     showAlert('Error loading phenomena: ' + e.message, 'error');
                 });
         }
@@ -350,8 +344,6 @@
                     </form>
                 </div>
             `;
-            
-            // Show anomaly bounds only for quantitative types
             document.getElementById('ptKind').addEventListener('change', (e) => {
                 const boundsGroup = document.getElementById('anomalyBoundsGroup');
                 boundsGroup.style.display = e.target.value === 'QUANTITATIVE' ? 'block' : 'none';
@@ -368,7 +360,6 @@
                 kind: kind
             };
 
-            // Add normMin and normMax for quantitative types
             if (kind === 'QUANTITATIVE') {
                 const normMin = document.getElementById('ptNormMin').value;
                 const normMax = document.getElementById('ptNormMax').value;
@@ -461,13 +452,11 @@
             `;
             modal.classList.add('active');
             
-            // Load existing phenomena and all phenomena for parent dropdown
             Promise.all([
                 fetch(`${API_BASE}/phenomenon-types/${phenomenonTypeId}/phenomena`).then(r => r.json()),
                 fetch(`${API_BASE}/phenomenon-types`).then(r => r.json())
             ])
                 .then(([typePhenomena, phenomenonTypes]) => {
-                    // Get all phenomena from all qualitative types for parent dropdown
                     const allPhenomena = [];
                     for (const pt of phenomenonTypes) {
                         if (pt.kind === 'QUALITATIVE' && pt.phenomena) {
@@ -475,7 +464,6 @@
                         }
                     }
                     
-                    // Create parent dropdown options (exclude the current phenomenon from the list when displayed)
                     const parentOptions = allPhenomena.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
                     
                     const phenomenaList = typePhenomena.map(p => {
@@ -510,7 +498,6 @@
                                     <option value="">None</option>
                                     ${parentOptions}
                                 </select>
-                                <small style="color: #666;">Create a hierarchy by selecting a parent concept</small>
                             </div>
                             <div class="actions">
                                 <button type="submit" class="btn btn-primary">Add</button>
@@ -659,7 +646,6 @@
             `;
             modal.classList.add('active');
             
-            // Initialize with one condition field
             addConditionField();
         }
 
@@ -740,7 +726,6 @@
             const operatorSelect = field.querySelector('.condition-operator');
             const valueGroup = field.querySelector('.condition-value-group');
             
-            // Hide all options first
             Array.from(operatorSelect.options).forEach(opt => opt.style.display = 'none');
             
             if (kind === 'QUANTITATIVE') {
@@ -903,7 +888,6 @@
             `;
             modal.classList.add('active');
             
-            // Load existing conditions
             const container = document.getElementById('conditions-container');
             container.innerHTML = '';
             rule.conditions.forEach((cond, idx) => {
